@@ -10,6 +10,7 @@ import { apiBaseUrl, apiFetch, ApiError } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { cn } from '@/lib/cn';
 import { useProfile } from '@/lib/useProfile';
+import 'highlight.js/styles/github-dark.css';
 
 interface DocItem {
   filePath: string;
@@ -132,6 +133,46 @@ function ReaderContent() {
     });
     setToc(items);
   }, [doc]);
+
+  // Syntax-highlight code blocks + render Mermaid diagrams (lazy-loaded).
+  useEffect(() => {
+    const root = articleRef.current;
+    if (!doc || raw || !root) return;
+    let cancelled = false;
+    void (async () => {
+      const hljs = (await import('highlight.js')).default;
+      if (cancelled) return;
+      root.querySelectorAll('pre code').forEach((el) => {
+        const c = el as HTMLElement;
+        if (c.classList.contains('language-mermaid') || c.dataset.hl) return;
+        hljs.highlightElement(c);
+        c.dataset.hl = '1';
+      });
+
+      const blocks = Array.from(root.querySelectorAll('code.language-mermaid'));
+      if (!blocks.length) return;
+      const mermaid = (await import('mermaid')).default;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
+      let i = 0;
+      for (const code of blocks) {
+        const pre = code.closest('pre');
+        if (!pre) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-${i++}`, code.textContent ?? '');
+          if (cancelled) return;
+          const wrap = document.createElement('div');
+          wrap.className = 'my-5 flex justify-center overflow-x-auto';
+          wrap.innerHTML = svg;
+          pre.replaceWith(wrap);
+        } catch {
+          /* leave the original code block on parse error */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [doc, raw]);
 
   // Group documents by top-level folder for the left tree.
   const groups = useMemo(() => {

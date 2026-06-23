@@ -48,8 +48,9 @@ cd backend && npm run seed
 it works against any running backend (local or Docker):
 
 - **3 members** — owner, editor, viewer (one workspace).
-- **6 documents** across `docs/` and `api/` folders with cross-links, so the
-  **graph**, **structure builder** and **search** have real data.
+- **7 documents** across `docs/`, `api/` and `guide/` folders with cross-links
+  (incl. a sample with highlighted code + a Mermaid diagram), so the **graph**,
+  **structure builder**, **search** and **reader** have real data.
 - **1 intentional broken link** (`api/auth.md` → `api/rate-limits.md`) to
   populate the **Broken links** report.
 - **2 media assets** on the default local volume: `logo.png` embedded in
