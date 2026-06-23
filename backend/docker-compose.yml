@@ -1,0 +1,14 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: docugraph-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_DATABASE: docugraph
+    volumes:
+      - docugraph-mongo-data:/data/db
+
+volumes:
+  docugraph-mongo-data:

@@ -1,0 +1,14 @@
+# DocuGraph — monorepo (backend/ + frontend/ + orkiestracja + materiały).
+# Artefakty backendu/frontendu ignorują ich własne .gitignore w podkatalogach.
+
+# ── archiwa / lokalne kopie ───────────────────────────────────
+*.zip
+
+# ── edytor / OS ───────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# ── lokalny stan narzędzi / edytora ───────────────────────────
+.claude/

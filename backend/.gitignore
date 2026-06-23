@@ -1,0 +1,29 @@
+# compiled output
+/dist
+/node_modules
+/build
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# runtime workspace files (.md SSoT) — not part of the repo
+/workspaces
+
+# tests
+/coverage
+/.nyc_output
+
+# IDE
+/.idea
+/.vscode
+*.swp
+
+# OS
+.DS_Store

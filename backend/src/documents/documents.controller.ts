@@ -1,0 +1,379 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '../common/enums/role.enum';
+import { CombinedAuthGuard } from '../common/guards/combined-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { RequestWithWorkspace } from '../common/interfaces/request-with-workspace.interface';
+import { WorkspacesService } from '../workspaces/workspaces.service';
+import { DocumentEntityDocument } from './schemas/document.schema';
+import { CreateDocumentDto } from './dto/create-document.dto';
+import { FixBrokenLinkDto } from './dto/fix-broken-link.dto';
+import { SourceDto } from './dto/source.dto';
+import { AddCommentDto, ResolveCommentDto } from './dto/comment.dto';
+import { MoveDocumentDto } from './dto/move-document.dto';
+import { ReadEventDto, WatchDto } from './dto/telemetry.dto';
+import { PublishDto } from './dto/publish.dto';
+import { DocumentsService } from './documents.service';
+import { GitPublishService } from './git-publish.service';
+import { AutoPublishService } from './auto-publish.service';
+import { UsersService } from '../users/users.service';
+
+@Controller('workspaces/:id/documents')
+@UseGuards(CombinedAuthGuard)
+export class DocumentsController {
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly workspacesService: WorkspacesService,
+    private readonly gitPublish: GitPublishService,
+    private readonly autoPublish: AutoPublishService,
+    private readonly usersService: UsersService,
+    private readonly config: ConfigService,
+  ) {}
+
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async upsert(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: CreateDocumentDto,
+  ) {
+    const updatedBy = req.authType === 'jwt' ? req.user.userId : null;
+    const doc = await this.documentsService.upsert(
+      workspaceId,
+      dto.file_path,
+      dto.content_raw,
+      updatedBy,
+      dto.message,
+    );
+    this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
+    return this.toFull(doc);
+  }
+
+  @Get()
+  list(@Param('id') workspaceId: string) {
+    return this.documentsService.list(workspaceId);
+  }
+
+  @Get('graph')
+  graph(@Param('id') workspaceId: string) {
+    return this.documentsService.getGraph(workspaceId);
+  }
+
+  @Get('stats')
+  stats(@Param('id') workspaceId: string) {
+    return this.documentsService.getStats(workspaceId);
+  }
+
+  // ---- Telemetria: odczyty + obserwacje ----
+
+  @Post('events/read')
+  recordRead(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: ReadEventDto,
+  ) {
+    const userId = req.authType === 'jwt' ? req.user.userId : null;
+    return this.documentsService.recordRead(
+      workspaceId,
+      dto.path,
+      userId,
+      dto.durationMs ?? 0,
+    );
+  }
+
+  @Get('watching')
+  watching(@Param('id') workspaceId: string, @Req() req: RequestWithWorkspace) {
+    if (req.authType !== 'jwt') return [];
+    return this.documentsService.listWatching(workspaceId, req.user.userId);
+  }
+
+  @Post('watch')
+  setWatch(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: WatchDto,
+  ) {
+    if (req.authType !== 'jwt') {
+      throw new BadRequestException('Watching requires a signed-in user');
+    }
+    return this.documentsService.setWatch(
+      workspaceId,
+      req.user.userId,
+      dto.path,
+      dto.on,
+    );
+  }
+
+  // ---- Review / komentarze ----
+
+  @Get('comments')
+  comments(@Param('id') workspaceId: string, @Query('path') path: string) {
+    if (!path || typeof path !== 'string') {
+      throw new BadRequestException('Query param "path" must be a string');
+    }
+    return this.documentsService.listComments(workspaceId, path);
+  }
+
+  @Post('comments')
+  addComment(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: AddCommentDto,
+  ) {
+    if (req.authType !== 'jwt' || !req.user.userId) {
+      throw new BadRequestException('Comments require a signed-in user');
+    }
+    return this.documentsService.addComment(
+      workspaceId,
+      dto.path,
+      dto.line,
+      dto.quote ?? '',
+      dto.body,
+      req.user.userId,
+    );
+  }
+
+  @Post('comments/resolve')
+  resolveComment(
+    @Param('id') workspaceId: string,
+    @Body() dto: ResolveCommentDto,
+  ) {
+    return this.documentsService.setThreadResolved(
+      workspaceId,
+      dto.path,
+      dto.line,
+      dto.resolved,
+    );
+  }
+
+  // ---- Source (Git) — Moduł F ----
+
+  @Get('source')
+  getSource(@Param('id') workspaceId: string) {
+    return this.workspacesService.getSource(workspaceId);
+  }
+
+  @Put('source')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner)
+  setSource(@Param('id') workspaceId: string, @Body() dto: SourceDto) {
+    return this.workspacesService.setSource(workspaceId, dto);
+  }
+
+  @Get('source/webhook')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner)
+  getWebhookConfig(@Param('id') workspaceId: string) {
+    return this.workspacesService.getWebhookConfig(workspaceId);
+  }
+
+  @Post('source/index')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async indexSource(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    const source = await this.workspacesService.getSource(workspaceId);
+    const updatedBy = req.authType === 'jwt' ? req.user.userId : null;
+    const result = await this.documentsService.indexSource(
+      workspaceId,
+      source,
+      updatedBy,
+    );
+    await this.workspacesService.markIndexed(workspaceId);
+    return result;
+  }
+
+  @Post('source/publish')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async publish(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: PublishDto,
+  ) {
+    const remote = await this.workspacesService.getPushRemote(workspaceId);
+    if (!remote) {
+      throw new BadRequestException(
+        'Configure a push remote first (Connect → publishing).',
+      );
+    }
+    const source = (await this.workspacesService.getSource(workspaceId)) as
+      | { branch?: string }
+      | null;
+    const branch = source?.branch || 'main';
+
+    let authorName = 'DocuGraph';
+    let authorEmail = 'docugraph@localhost';
+    if (req.authType === 'jwt') {
+      const user = await this.usersService.findById(req.user.userId);
+      if (user) {
+        authorName = user.name;
+        authorEmail = user.email;
+      }
+    }
+
+    return this.gitPublish.publish({
+      workspaceId,
+      remote,
+      branch,
+      message: dto.message || 'Publish from DocuGraph',
+      authorName,
+      authorEmail,
+    });
+  }
+
+  @Post('move')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async move(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: MoveDocumentDto,
+  ) {
+    const updatedBy = req.authType === 'jwt' ? req.user.userId : null;
+    const result = await this.documentsService.moveDocument(
+      workspaceId,
+      dto.from,
+      dto.to,
+      updatedBy,
+    );
+    this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
+    return result;
+  }
+
+  @Get('broken-links')
+  brokenLinks(@Param('id') workspaceId: string) {
+    return this.documentsService.getBrokenLinks(workspaceId);
+  }
+
+  /** Zwięzłe zdrowie dokumentacji dla CI (działa z tokenem dg_live_…). */
+  @Get('health')
+  health(@Param('id') workspaceId: string) {
+    return this.documentsService.healthReport(workspaceId);
+  }
+
+  /** Atom feed ostatnio zmienionych dokumentów. */
+  @Get('feed.atom')
+  async feed(@Param('id') workspaceId: string, @Res() res: Response) {
+    const items = await this.documentsService.recent(workspaceId, 30);
+    const appUrl = (
+      this.config.get<string>('appUrl') ?? 'http://localhost:3002'
+    ).replace(/\/+$/, '');
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const updated =
+      items[0]?.updatedAt?.toISOString() ?? new Date(0).toISOString();
+    const entries = items
+      .map((d) => {
+        const link = `${appUrl}/documents/view?path=${encodeURIComponent(d.filePath)}`;
+        const id = `urn:docugraph:${workspaceId}:${esc(d.filePath)}`;
+        return `  <entry>
+    <title>${esc(d.title)}</title>
+    <id>${id}</id>
+    <updated>${(d.updatedAt ?? new Date(0)).toISOString()}</updated>
+    <link rel="alternate" href="${esc(link)}"/>
+    <summary>${esc(d.filePath)}</summary>
+  </entry>`;
+      })
+      .join('\n');
+    const xml = `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>DocuGraph — recently updated</title>
+  <id>urn:docugraph:workspace:${workspaceId}</id>
+  <updated>${updated}</updated>
+${entries}
+</feed>
+`;
+    res.setHeader('Content-Type', 'application/atom+xml; charset=utf-8');
+    res.send(xml);
+  }
+
+  @Post('broken-links/fix')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async fixBrokenLink(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: FixBrokenLinkDto,
+  ) {
+    const updatedBy = req.authType === 'jwt' ? req.user.userId : null;
+    const result = await this.documentsService.fixBrokenLink(
+      workspaceId,
+      dto.from,
+      dto.to,
+      updatedBy,
+    );
+    this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
+    return result;
+  }
+
+  @Get('revisions')
+  revisions(@Param('id') workspaceId: string, @Query('path') path: string) {
+    if (!path || typeof path !== 'string') {
+      throw new BadRequestException('Query param "path" must be a string');
+    }
+    return this.documentsService.listRevisions(workspaceId, path);
+  }
+
+  @Get('revision/:revId')
+  revision(@Param('id') workspaceId: string, @Param('revId') revId: string) {
+    return this.documentsService.getRevision(workspaceId, revId);
+  }
+
+  @Get('diff/:revId')
+  diff(@Param('id') workspaceId: string, @Param('revId') revId: string) {
+    return this.documentsService.getDiff(workspaceId, revId);
+  }
+
+  @Get('search')
+  search(@Param('id') workspaceId: string, @Query('q') q: string) {
+    if (!q || typeof q !== 'string') {
+      throw new BadRequestException('Query param "q" must be a string');
+    }
+    return this.documentsService.search(workspaceId, q);
+  }
+
+  @Get('by-path')
+  async getByPath(
+    @Param('id') workspaceId: string,
+    @Query('path') path: string,
+  ) {
+    // Wymuszamy string — query param może przyjść jako obiekt/tablica
+    // (np. ?path[$ne]=), co byłoby wektorem NoSQL injection.
+    if (!path || typeof path !== 'string') {
+      throw new BadRequestException('Query param "path" must be a string');
+    }
+    const doc = await this.documentsService.getByPath(workspaceId, path);
+    return this.toFull(doc);
+  }
+
+  private toFull(doc: DocumentEntityDocument) {
+    return {
+      id: doc._id.toString(),
+      filePath: doc.filePath,
+      title: doc.title,
+      contentRaw: doc.contentRaw,
+      contentHtml: doc.contentHtml,
+      metadata: doc.metadata,
+      links: doc.links,
+      updatedBy: doc.updatedBy ? doc.updatedBy.toString() : null,
+    };
+  }
+}

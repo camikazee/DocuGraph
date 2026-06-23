@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* System motywów z makiet DocuGraph (.dc.html) — dokładne wartości tokenów. */
+:root,
+html[data-theme='violet'] {
+  --bg: #060b18;
+  --panel: #0a0f1c;
+  --card: #0c1322;
+  --line: #1e293b;
+  --line2: #141d30;
+  --rowhover: #0e1626;
+  --fg: #f8fafc;
+  --fg2: #cbd5e1;
+  --fg3: #94a3b8;
+  --muted: #5b6b85;
+  --acc: #7c3aed;
+  --accfg: #a78bfa;
+  --accsoft: rgba(124, 58, 237, 0.14);
+  --capbg: #11192b;
+  --capbd: #283549;
+  --inputbd: #243049;
+  --codebg: #070c19;
+}
+
+html[data-theme='grey'] {
+  --bg: #0e0f12;
+  --panel: #17181c;
+  --card: #1b1c20;
+  --line: #2a2c32;
+  --line2: #202125;
+  --rowhover: #202227;
+  --fg: #f3f4f6;
+  --fg2: #d4d4d8;
+  --fg3: #a1a1aa;
+  --muted: #8a8f99;
+  --acc: #71717a;
+  --accfg: #c4c4ca;
+  --accsoft: rgba(113, 113, 122, 0.2);
+  --capbg: #202125;
+  --capbd: #34363c;
+  --inputbd: #34363c;
+  --codebg: #121316;
+}
+
+html[data-theme='light'] {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --line: #e4e7ec;
+  --line2: #eef0f4;
+  --rowhover: #f7f8fa;
+  --fg: #101828;
+  --fg2: #344054;
+  --fg3: #667085;
+  --muted: #98a2b3;
+  --acc: #6d28d9;
+  --accfg: #6d28d9;
+  --accsoft: rgba(124, 58, 237, 0.1);
+  --capbg: #f3f4f7;
+  --capbd: #e2e6ec;
+  --inputbd: #d6dae1;
+  --codebg: #f7f8fa;
+}
+
+@layer base {
+  body {
+    @apply bg-bg text-fg2 font-sans antialiased;
+  }
+}
+
+/* Toast notifications — enter/exit + lifetime progress bar. */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(20px) scale(0.96); }
+}
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes toast-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
+}
