@@ -35,4 +35,4 @@ Open an issue for bugs. For **security** vulnerabilities, follow
 ## License
 
 By contributing you agree that your contributions are licensed under the
-project's [MIT License](./LICENSE).
+project's [PolyForm Noncommercial License](./LICENSE).

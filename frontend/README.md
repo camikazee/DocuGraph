@@ -39,4 +39,4 @@ Next.js 14 · React 18 · TypeScript (strict) · Tailwind CSS · Jest + RTL.
 
 ## License
 
-[MIT](./LICENSE)
+[PolyForm Noncommercial](./LICENSE)

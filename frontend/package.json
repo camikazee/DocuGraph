@@ -2,7 +2,7 @@
   "name": "docugraph-frontend",
   "version": "0.1.0",
   "description": "DocuGraph — developer documentation SaaS (frontend: Next.js 14 + TypeScript + Tailwind).",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "engines": {
     "node": ">=18.18.0"

@@ -24,4 +24,4 @@ A running backend is required (see the backend repository, or the demo stack's
 For vulnerabilities, see [`SECURITY.md`](./SECURITY.md) — do not open a public
 issue.
 
-Contributions are licensed under the project's [MIT License](./LICENSE).
+Contributions are licensed under the project's [PolyForm Noncommercial License](./LICENSE).

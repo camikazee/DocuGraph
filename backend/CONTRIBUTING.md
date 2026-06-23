@@ -25,4 +25,4 @@ Health check: `curl http://localhost:3000/api/v1/health` · API docs: `/api/docs
 Read [`SECURITY.md`](./SECURITY.md) before deploying publicly. Report
 vulnerabilities privately — do not open a public issue.
 
-Contributions are licensed under the project's [MIT License](./LICENSE).
+Contributions are licensed under the project's [PolyForm Noncommercial License](./LICENSE).

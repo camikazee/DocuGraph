@@ -2,7 +2,7 @@
   "name": "docugraph-backend",
   "version": "0.1.0",
   "description": "DocuGraph — developer-focused documentation SaaS (backend). Module D: Auth & Multi-tenancy.",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": false,
   "engines": {
     "node": ">=18.18.0"

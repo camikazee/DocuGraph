@@ -163,4 +163,4 @@ Zobacz `.env.example`. Kluczowe: `MONGO_URI`, `JWT_SECRET`, `MEDIA_SECRET`
 
 ## Licencja
 
-[MIT](./LICENSE).
+[PolyForm Noncommercial](./LICENSE).
