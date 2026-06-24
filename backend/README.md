@@ -118,6 +118,7 @@ src/
 | GET | `/workspaces/:id/documents/by-path?path=…` | pełny dokument (HTML, metadata, linki) |
 | GET | `/workspaces/:id/documents/health` | zwięzłe zdrowie docs (`ok`, broken/orphan/stale) — pod CI |
 | GET | `/workspaces/:id/documents/feed.atom` | Atom feed ostatnio zmienionych dokumentów |
+| GET | `/workspaces/:id/documents/export.html` | eksport całej dokumentacji do jednego, samowystarczalnego pliku HTML (read-only) |
 
 ### Bramka jakości w CI
 

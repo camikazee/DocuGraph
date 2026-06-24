@@ -50,6 +50,12 @@ describe('Document extras: tags + feed (e2e)', () => {
       .set('Authorization', auth())
       .send({ file_path: 'notes/draft.md', content_raw: '# Draft\n\nSee [missing](nope.md).' })
       .expect(201);
+    // a doc that links to an existing doc (for export anchor rewriting)
+    await request(app.getHttpServer())
+      .post(`/api/v1/workspaces/${ws}/documents`)
+      .set('Authorization', auth())
+      .send({ file_path: 'index.md', content_raw: '# Index\n\nGo to [draft](notes/draft.md).' })
+      .expect(201);
   });
 
   afterAll(async () => {
@@ -77,6 +83,22 @@ describe('Document extras: tags + feed (e2e)', () => {
     expect(auth_.health).toMatchObject({ broken: false, orphan: true });
     // notes/draft.md links to a missing file → broken
     expect(draft.health.broken).toBe(true);
+  });
+
+  it('exports a self-contained HTML file with internal links rewritten to anchors', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/workspaces/${ws}/documents/export.html`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    // every doc becomes a section anchor + appears in the nav
+    expect(res.text).toContain('id="doc-api-auth-md"');
+    expect(res.text).toContain('id="doc-index-md"');
+    expect(res.text).toContain('>Authentication<');
+    // index.md's link to notes/draft.md is rewritten to the in-page anchor
+    expect(res.text).toContain('href="#doc-notes-draft-md"');
+    // broken link (notes/draft.md -> nope.md) is left untouched
+    expect(res.text).toContain('href="nope.md"');
   });
 
   it('serves a valid Atom feed of recently updated docs', async () => {

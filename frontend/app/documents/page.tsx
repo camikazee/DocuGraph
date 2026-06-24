@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/Input';
 import { Loader } from '@/components/ui/Loader';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
-import { apiFetch, ApiError } from '@/lib/api';
+import { apiFetch, ApiError, apiBaseUrl } from '@/lib/api';
+import { getToken } from '@/lib/auth';
 import { required } from '@/lib/validation';
 import { useProfile } from '@/lib/useProfile';
 
@@ -87,6 +88,32 @@ export default function DocumentsPage() {
     content?: string | null;
   }>({});
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Download the whole workspace as one self-contained static HTML file.
+  const exportDocs = useCallback(async () => {
+    if (!ws || exporting) return;
+    setExporting(true);
+    try {
+      const res = await fetch(
+        `${apiBaseUrl}/workspaces/${ws}/documents/export.html`,
+        { headers: { Authorization: `Bearer ${getToken() ?? ''}` } },
+      );
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'documentation.html';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Documentation exported', 'success');
+    } catch {
+      toast('Export failed', 'error');
+    } finally {
+      setExporting(false);
+    }
+  }, [ws, exporting, toast]);
 
   const load = useCallback(async () => {
     if (!ws) return;
@@ -169,6 +196,17 @@ export default function DocumentsPage() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2.5">
+          <button
+            onClick={exportDocs}
+            disabled={exporting}
+            className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc disabled:opacity-60"
+            title="Download all docs as a single static HTML file"
+          >
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M8 2.5v7M5 7l3 3 3-3M3 13h10" stroke="var(--accfg)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {exporting ? 'Exporting…' : 'Export'}
+          </button>
           <Link
             href="/documents/structure"
             className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc"

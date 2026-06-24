@@ -269,6 +269,14 @@ export class DocumentsController {
     return this.documentsService.healthReport(workspaceId);
   }
 
+  /** Eksport całej dokumentacji do jednego pliku HTML (read-only). */
+  @Get('export.html')
+  async exportHtml(@Param('id') workspaceId: string, @Res() res: Response) {
+    const html = await this.documentsService.exportHtml(workspaceId);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  }
+
   /** Atom feed ostatnio zmienionych dokumentów. */
   @Get('feed.atom')
   async feed(@Param('id') workspaceId: string, @Res() res: Response) {
