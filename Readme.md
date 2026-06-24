@@ -76,6 +76,10 @@ The compose stack is dev/demo only. For production setup (secrets, TLS,
 persistent storage, hardening, connecting a repo, CI gate) see
 [DEPLOY.md](DEPLOY.md). Security model and reporting: [SECURITY.md](SECURITY.md).
 
+## Roadmap
+
+What's shipped and what's next, as a checkable list: [ROADMAP.md](ROADMAP.md).
+
 ## License
 
 **Free for noncommercial use.** You may use, copy, and modify DocuGraph for any
