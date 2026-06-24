@@ -16,6 +16,10 @@ import { Revision, RevisionDocument } from './schemas/revision.schema';
 import { Comment, CommentDocument } from './schemas/comment.schema';
 import { Event, EventDocument } from './schemas/event.schema';
 import { Watch, WatchDocument } from './schemas/watch.schema';
+import {
+  Notification,
+  NotificationDocument,
+} from './schemas/notification.schema';
 import { UserDocument } from '../users/schemas/user.schema';
 import { lineDiff } from './diff.util';
 
@@ -32,6 +36,8 @@ export class DocumentsService {
     private readonly eventModel: Model<EventDocument>,
     @InjectModel(Watch.name)
     private readonly watchModel: Model<WatchDocument>,
+    @InjectModel(Notification.name)
+    private readonly notificationModel: Model<NotificationDocument>,
     private readonly storage: WorkspaceStorageService,
     private readonly parser: MarkdownParserService,
   ) {}
@@ -183,8 +189,109 @@ export class DocumentsService {
         updatedBy,
         message: message?.trim() ? message.trim() : null,
       });
+      // Powiadom obserwujących — tylko o realnej zmianie istniejącego dokumentu
+      // (nie o jego pierwszym utworzeniu) i nie autora tej zmiany.
+      if (latest) {
+        await this.notifyWatchers(
+          workspaceId,
+          filePath,
+          parsed.title,
+          updatedBy,
+        );
+      }
     }
     return doc;
+  }
+
+  /** Tworzy powiadomienia dla obserwujących dokument (poza autorem zmiany). */
+  private async notifyWatchers(
+    workspaceId: string,
+    filePath: string,
+    title: string,
+    actorId: string | null,
+  ): Promise<void> {
+    const watchers = await this.watchModel
+      .find({ workspaceId, filePath })
+      .select('userId')
+      .lean()
+      .exec();
+    const recipients = watchers
+      .map((w) => w.userId)
+      .filter((uid) => !actorId || uid.toString() !== actorId);
+    if (recipients.length === 0) return;
+    await this.notificationModel.insertMany(
+      recipients.map((userId) => ({
+        workspaceId,
+        userId,
+        filePath,
+        title,
+        kind: 'changed',
+        actorId: actorId ?? null,
+      })),
+    );
+  }
+
+  /** Powiadomienia odbiorcy (najnowsze pierwsze); opcjonalnie tylko nieprzeczytane. */
+  async listNotifications(
+    workspaceId: string,
+    userId: string,
+    opts: { unreadOnly?: boolean; limit?: number } = {},
+  ) {
+    const filter: Record<string, unknown> = { workspaceId, userId };
+    if (opts.unreadOnly) filter.readAt = null;
+    const items = await this.notificationModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Math.min(opts.limit ?? 30, 100))
+      .populate<{ actorId: UserDocument | null }>('actorId', 'name')
+      .lean()
+      .exec();
+    return items.map((n) => {
+      const actor = n.actorId as { name?: string } | null;
+      return {
+        id: n.uuid,
+        filePath: n.filePath,
+        title: n.title,
+        kind: n.kind,
+        actor: actor?.name ?? 'CI',
+        read: !!n.readAt,
+        createdAt: (n as unknown as { createdAt: Date }).createdAt,
+      };
+    });
+  }
+
+  /** Liczba nieprzeczytanych powiadomień odbiorcy. */
+  async unreadCount(workspaceId: string, userId: string): Promise<number> {
+    return this.notificationModel.countDocuments({
+      workspaceId,
+      userId,
+      readAt: null,
+    });
+  }
+
+  /** Oznacza jedno powiadomienie jako przeczytane; zwraca aktualny licznik. */
+  async markNotificationRead(
+    workspaceId: string,
+    userId: string,
+    uuid: string,
+  ): Promise<{ unread: number }> {
+    await this.notificationModel.updateOne(
+      { workspaceId, userId, uuid, readAt: null },
+      { $set: { readAt: new Date() } },
+    );
+    return { unread: await this.unreadCount(workspaceId, userId) };
+  }
+
+  /** Oznacza wszystkie powiadomienia odbiorcy jako przeczytane. */
+  async markAllNotificationsRead(
+    workspaceId: string,
+    userId: string,
+  ): Promise<{ unread: number }> {
+    await this.notificationModel.updateMany(
+      { workspaceId, userId, readAt: null },
+      { $set: { readAt: new Date() } },
+    );
+    return { unread: 0 };
   }
 
   /** Historia edycji dokumentu (najnowsze pierwsze) z licznikami +/-. */

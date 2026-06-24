@@ -9,6 +9,10 @@ import { Revision, RevisionSchema } from './schemas/revision.schema';
 import { Comment, CommentSchema } from './schemas/comment.schema';
 import { Event, EventSchema } from './schemas/event.schema';
 import { Watch, WatchSchema } from './schemas/watch.schema';
+import {
+  Notification,
+  NotificationSchema,
+} from './schemas/notification.schema';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
 import { WebhooksController } from './webhooks.controller';
@@ -25,6 +29,7 @@ import { AutoPublishService } from './auto-publish.service';
       { name: Comment.name, schema: CommentSchema },
       { name: Event.name, schema: EventSchema },
       { name: Watch.name, schema: WatchSchema },
+      { name: Notification.name, schema: NotificationSchema },
     ]),
     AuthModule, // JwtService (dla CombinedAuthGuard)
     WorkspacesModule, // WorkspacesService

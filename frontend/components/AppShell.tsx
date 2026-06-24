@@ -7,6 +7,7 @@ import { LogoMark } from '@/components/ui/Logo';
 import { SidebarLink } from '@/components/ui/SidebarLink';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { CommandPalette, openCommandPalette } from '@/components/CommandPalette';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: 'M2 6.5L8 2l6 4.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6.5Z' },
@@ -55,6 +56,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ⌘K
           </kbd>
         </button>
+        <div className="mb-3">
+          <NotificationBell />
+        </div>
         <div className="px-2.5 pb-2 pt-1.5 text-[10.5px] font-bold uppercase tracking-[0.09em] text-muted">
           Workspace
         </div>

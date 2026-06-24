@@ -119,6 +119,64 @@ export class DocumentsController {
     );
   }
 
+  // ---- Powiadomienia o zmianach w obserwowanych dokumentach ----
+
+  @Get('notifications')
+  notifications(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Query('unread') unread?: string,
+  ) {
+    if (req.authType !== 'jwt') return [];
+    return this.documentsService.listNotifications(workspaceId, req.user.userId, {
+      unreadOnly: unread === '1' || unread === 'true',
+    });
+  }
+
+  @Get('notifications/count')
+  async notificationCount(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    if (req.authType !== 'jwt') return { unread: 0 };
+    return {
+      unread: await this.documentsService.unreadCount(
+        workspaceId,
+        req.user.userId,
+      ),
+    };
+  }
+
+  @Post('notifications/read-all')
+  readAllNotifications(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    if (req.authType !== 'jwt') {
+      throw new BadRequestException('Notifications require a signed-in user');
+    }
+    return this.documentsService.markAllNotificationsRead(
+      workspaceId,
+      req.user.userId,
+    );
+  }
+
+  @Post('notifications/:uuid/read')
+  readNotification(
+    @Param('id') workspaceId: string,
+    @Param('uuid') uuid: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    if (req.authType !== 'jwt') {
+      throw new BadRequestException('Notifications require a signed-in user');
+    }
+    return this.documentsService.markNotificationRead(
+      workspaceId,
+      req.user.userId,
+      uuid,
+    );
+  }
+
   // ---- Review / komentarze ----
 
   @Get('comments')
