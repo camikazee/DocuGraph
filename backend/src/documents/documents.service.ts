@@ -854,6 +854,70 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
   }
 
   /**
+   * Naprawia wszystkie zepsute linki, które mają jednoznaczną propozycję.
+   * Grupuje po dokumencie źródłowym, by każdy zapisać raz (jedna rewizja/doc).
+   * Linki bez dopasowania trafiają do `skipped`.
+   */
+  async fixAllBrokenLinks(workspaceId: string, updatedBy: string | null) {
+    const docs = await this.documentModel
+      .find({ workspaceId })
+      .select('filePath contentRaw')
+      .exec();
+    const allPaths = new Set(docs.map((d) => d.filePath));
+    const fixed: { from: string; to: string; replacement: string }[] = [];
+    const skipped: { from: string; to: string }[] = [];
+
+    for (const d of docs) {
+      const brokenInDoc = this.scanLinks(d.contentRaw, d.filePath).filter(
+        (l) => !allPaths.has(l.canonical),
+      );
+      if (brokenInDoc.length === 0) continue;
+
+      const paths = new Set(
+        [...allPaths].filter((p) => p !== d.filePath),
+      );
+      let content = d.contentRaw;
+      let changed = 0;
+      const replacedHrefs = new Set<string>();
+
+      for (const link of brokenInDoc) {
+        const suggestion = this.suggestTarget(link.canonical, paths);
+        if (!suggestion) {
+          skipped.push({ from: d.filePath, to: link.canonical });
+          continue;
+        }
+        // Każdy unikalny href przepisujemy raz (split/join podmienia wszystkie).
+        if (!replacedHrefs.has(link.original)) {
+          const newRel =
+            path.posix.relative(path.posix.dirname(d.filePath), suggestion) ||
+            path.posix.basename(suggestion);
+          content = content.split(`](${link.original})`).join(`](${newRel})`);
+          replacedHrefs.add(link.original);
+          changed++;
+        }
+        fixed.push({ from: d.filePath, to: link.canonical, replacement: suggestion });
+      }
+
+      if (changed > 0) {
+        await this.upsert(
+          workspaceId,
+          d.filePath,
+          content,
+          updatedBy,
+          `Fix ${changed} broken link${changed > 1 ? 's' : ''}`,
+        );
+      }
+    }
+
+    return {
+      fixedCount: fixed.length,
+      skippedCount: skipped.length,
+      fixed,
+      skipped,
+    };
+  }
+
+  /**
    * Przenosi/zmienia ścieżkę dokumentu i automatycznie refaktoryzuje linki
    * (Algorytm B w obie strony):
    *  - linki przychodzące: każdy dokument linkujący do `from` → przepisany na `to`,

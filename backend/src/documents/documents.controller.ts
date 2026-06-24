@@ -390,6 +390,22 @@ ${entries}
     return result;
   }
 
+  @Post('broken-links/fix-all')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async fixAllBrokenLinks(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    const updatedBy = req.authType === 'jwt' ? req.user.userId : null;
+    const result = await this.documentsService.fixAllBrokenLinks(
+      workspaceId,
+      updatedBy,
+    );
+    this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
+    return result;
+  }
+
   @Get('revisions')
   revisions(@Param('id') workspaceId: string, @Query('path') path: string) {
     if (!path || typeof path !== 'string') {

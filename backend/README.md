@@ -123,6 +123,9 @@ src/
 | GET | `/workspaces/:id/documents/notifications/count` | liczba nieprzeczytanych (`{ unread }`) |
 | POST | `/workspaces/:id/documents/notifications/:uuid/read` | oznacz jedno jako przeczytane |
 | POST | `/workspaces/:id/documents/notifications/read-all` | oznacz wszystkie jako przeczytane |
+| GET | `/workspaces/:id/documents/broken-links` | raport zepsutych linków + propozycje naprawy |
+| POST | `/workspaces/:id/documents/broken-links/fix` | napraw pojedynczy link `{ from, to }` |
+| POST | `/workspaces/:id/documents/broken-links/fix-all` | napraw zbiorczo wszystkie rozwiązywalne linki (`{ fixedCount, skippedCount, fixed, skipped }`) |
 
 ### Bramka jakości w CI
 

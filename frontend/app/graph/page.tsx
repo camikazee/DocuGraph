@@ -97,17 +97,17 @@ export default function GraphPage() {
 
   async function fixAll() {
     if (!ws) return;
-    const fixable = broken.filter((b) => b.suggestion);
-    if (fixable.length === 0) return;
+    if (!broken.some((b) => b.suggestion)) return;
     setFixing(true);
     try {
-      for (const link of fixable) {
-        await apiFetch(`/workspaces/${ws}/documents/broken-links/fix`, {
-          method: 'POST',
-          body: JSON.stringify({ from: link.from, to: link.to }),
-        });
-      }
-      toast(`Fixed ${fixable.length} link(s)`, 'success');
+      const res = await apiFetch<{ fixedCount: number; skippedCount: number }>(
+        `/workspaces/${ws}/documents/broken-links/fix-all`,
+        { method: 'POST' },
+      );
+      const msg = res.skippedCount
+        ? `Fixed ${res.fixedCount} link(s) · ${res.skippedCount} need manual fix`
+        : `Fixed ${res.fixedCount} link(s)`;
+      toast(msg, res.fixedCount ? 'success' : 'info');
       await load();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : 'Auto-fix failed', 'error');
