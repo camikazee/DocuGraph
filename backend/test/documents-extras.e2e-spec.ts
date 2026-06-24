@@ -44,6 +44,12 @@ describe('Document extras: tags + feed (e2e)', () => {
       .set('Authorization', auth())
       .send({ file_path: 'api/auth.md', content_raw: '---\ntitle: Authentication\ntags: [api, security]\n---\n\n# Authentication\n' })
       .expect(201);
+    // a doc with a broken outgoing link (for per-document health)
+    await request(app.getHttpServer())
+      .post(`/api/v1/workspaces/${ws}/documents`)
+      .set('Authorization', auth())
+      .send({ file_path: 'notes/draft.md', content_raw: '# Draft\n\nSee [missing](nope.md).' })
+      .expect(201);
   });
 
   afterAll(async () => {
@@ -58,6 +64,19 @@ describe('Document extras: tags + feed (e2e)', () => {
       .expect(200);
     const doc = res.body.find((d: { filePath: string }) => d.filePath === 'api/auth.md');
     expect(doc.tags).toEqual(expect.arrayContaining(['api', 'security']));
+  });
+
+  it('document list includes per-document health flags', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/workspaces/${ws}/documents`)
+      .set('Authorization', auth())
+      .expect(200);
+    const auth_ = res.body.find((d: { filePath: string }) => d.filePath === 'api/auth.md');
+    const draft = res.body.find((d: { filePath: string }) => d.filePath === 'notes/draft.md');
+    // api/auth.md links nowhere and nothing links to it → orphan
+    expect(auth_.health).toMatchObject({ broken: false, orphan: true });
+    // notes/draft.md links to a missing file → broken
+    expect(draft.health.broken).toBe(true);
   });
 
   it('serves a valid Atom feed of recently updated docs', async () => {

@@ -762,10 +762,10 @@ export class DocumentsService {
   }
 
   async list(workspaceId: string) {
-    const [docs, readAgg] = await Promise.all([
+    const [docs, readAgg, broken] = await Promise.all([
       this.documentModel
         .find({ workspaceId })
-        .select('filePath title updatedAt metadata updatedBy contentRaw')
+        .select('filePath title updatedAt metadata updatedBy contentRaw links.outgoing')
         .populate<{ updatedBy: { uuid: string } | null }>('updatedBy', 'uuid')
         .sort({ filePath: 1 })
         .exec(),
@@ -783,18 +783,45 @@ export class DocumentsService {
           { $group: { _id: '$filePath', reads: { $sum: 1 } } },
         ])
         .exec(),
+      this.getBrokenLinks(workspaceId),
     ]);
     const readsByPath = new Map(readAgg.map((r) => [r._id, r.reads]));
-    return docs.map((d) => ({
-      filePath: d.filePath,
-      title: d.title,
-      updatedAt: d.get('updatedAt') as Date,
-      status: d.metadata?.status ?? null,
-      tags: d.metadata?.tags ?? [],
-      updatedBy: d.updatedBy ? d.updatedBy.uuid : null,
-      size: Buffer.byteLength(d.contentRaw ?? '', 'utf8'),
-      reads: readsByPath.get(d.filePath) ?? 0,
-    }));
+
+    // Per-document health (surfaced as badges in the list).
+    const paths = new Set(docs.map((d) => d.filePath));
+    const hasIncoming = new Set<string>();
+    for (const d of docs) {
+      for (const to of d.links?.outgoing ?? []) {
+        if (paths.has(to)) hasIncoming.add(to);
+      }
+    }
+    const brokenFrom = new Set(broken.map((b) => b.from));
+    const STALE_MS = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    return docs.map((d) => {
+      const updatedAt = d.get('updatedAt') as Date;
+      const outInternal = (d.links?.outgoing ?? []).filter((t) =>
+        paths.has(t),
+      ).length;
+      return {
+        filePath: d.filePath,
+        title: d.title,
+        updatedAt,
+        status: d.metadata?.status ?? null,
+        tags: d.metadata?.tags ?? [],
+        updatedBy: d.updatedBy ? d.updatedBy.uuid : null,
+        size: Buffer.byteLength(d.contentRaw ?? '', 'utf8'),
+        reads: readsByPath.get(d.filePath) ?? 0,
+        health: {
+          broken: brokenFrom.has(d.filePath),
+          orphan: outInternal === 0 && !hasIncoming.has(d.filePath),
+          stale: updatedAt
+            ? now - new Date(updatedAt).getTime() > STALE_MS
+            : false,
+        },
+      };
+    });
   }
 
   /** Wyszukiwanie pełnotekstowe (Moduł B) — scoped do workspace, po trafności. */

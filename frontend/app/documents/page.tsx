@@ -22,6 +22,7 @@ interface DocItem {
   tags: string[];
   updatedBy: string | null;
   reads: number;
+  health?: { broken: boolean; orphan: boolean; stale: boolean };
 }
 interface Member {
   userId: string;
@@ -70,6 +71,7 @@ export default function DocumentsPage() {
   const [filter, setFilter] = useState<'all' | StatusKey>('all');
   const [search, setSearch] = useState('');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [attention, setAttention] = useState(false);
 
   // Wstępny filtr tagu z URL (?tag=…) — bez useSearchParams, by uniknąć Suspense.
   useEffect(() => {
@@ -104,15 +106,18 @@ export default function DocumentsPage() {
     const q = search.trim().toLowerCase();
     return (docs ?? []).filter((d) => {
       const st = normalizeStatus(d.status);
+      const h = d.health;
+      const needsAttn = !!h && (h.broken || h.orphan || h.stale);
       return (
         (filter === 'all' || st === filter) &&
         (!tagFilter || (d.tags ?? []).includes(tagFilter)) &&
+        (!attention || needsAttn) &&
         (!q ||
           d.title.toLowerCase().includes(q) ||
           d.filePath.toLowerCase().includes(q))
       );
     });
-  }, [docs, filter, search, tagFilter]);
+  }, [docs, filter, search, tagFilter, attention]);
 
   async function createDoc(e: React.FormEvent) {
     e.preventDefault();
@@ -222,6 +227,30 @@ export default function DocumentsPage() {
             </svg>
           </button>
         )}
+        {(() => {
+          const n = (docs ?? []).filter(
+            (d) => d.health && (d.health.broken || d.health.orphan || d.health.stale),
+          ).length;
+          if (!n) return null;
+          return (
+            <button
+              onClick={() => setAttention((v) => !v)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-[9px] border px-3 py-2 text-[12.5px] font-semibold transition',
+                attention
+                  ? 'border-amber-500/60 bg-amber-500/15 text-amber-400'
+                  : 'border-line bg-card text-fg3 hover:text-fg2',
+              )}
+              title="Documents that may need attention"
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                <path d="M8 6v3.5M8 11h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              Needs attention {n}
+            </button>
+          );
+        })()}
       </div>
 
       {/* create form */}
@@ -320,6 +349,19 @@ export default function DocumentsPage() {
                           #{t}
                         </span>
                       ))}
+                    </div>
+                  )}
+                  {d.health && (d.health.broken || d.health.orphan || d.health.stale) && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {d.health.broken && (
+                        <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium text-red-400">broken links</span>
+                      )}
+                      {d.health.orphan && (
+                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">orphan</span>
+                      )}
+                      {d.health.stale && (
+                        <span className="rounded bg-rowhover px-1.5 py-0.5 text-[10px] font-medium text-fg3">stale</span>
+                      )}
                     </div>
                   )}
                 </div>
