@@ -79,7 +79,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 
 - [x] **Full-text search** — Mongo `$text` index (title + content, weighted) with scored results, snippets and facets; `/search` page + command palette
 - [~] **Pagination** — cursor pagination (`limit` + `before`) with "Load more" on the append-only logs (notifications, audit); documents / media / revisions still open
-- [ ] **Caching** for graph / health computations on large workspaces
+- [x] **Caching** — in-memory TTL cache (30s) for the graph and health computations per workspace, invalidated on document create/edit/move/delete so results stay fresh
 - [ ] **Graph performance** — virtualize / cluster large graphs
 - [ ] **Bulk operations** — fix orphans, archive stale, bulk tag/move
 

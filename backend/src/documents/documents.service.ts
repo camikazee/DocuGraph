@@ -54,6 +54,28 @@ export class DocumentsService {
     private readonly workspaces: WorkspacesService,
   ) {}
 
+  // --- Cache w pamięci dla drogich obliczeń per-workspace (graf, health). ---
+  // TTL zabezpiecza przed nieświeżością; mutacje dokumentów jawnie unieważniają.
+  private readonly computeCache = new Map<
+    string,
+    { at: number; data: unknown }
+  >();
+  private readonly CACHE_TTL_MS = 30_000;
+
+  private cacheGet<T>(key: string): T | null {
+    const e = this.computeCache.get(key);
+    if (e && Date.now() - e.at < this.CACHE_TTL_MS) return e.data as T;
+    return null;
+  }
+  private cacheSet(key: string, data: unknown): void {
+    this.computeCache.set(key, { at: Date.now(), data });
+  }
+  private invalidateWorkspace(workspaceId: string): void {
+    for (const k of this.computeCache.keys()) {
+      if (k.endsWith(`:${workspaceId}`)) this.computeCache.delete(k);
+    }
+  }
+
   /**
    * Zamienia `<img src=".../assets/<uuid>">` na osadzone data-URI (base64),
    * aby eksport był samowystarczalny (bez zależności od działającego API).
@@ -247,6 +269,7 @@ export class DocumentsService {
     );
 
     await this.reconcileBacklinks(workspaceId, filePath, parsed.outgoingLinks);
+    this.invalidateWorkspace(workspaceId); // graf/health mogły się zmienić
 
     // Snapshot do historii — tylko gdy treść faktycznie się zmieniła.
     const latest = await this.revisionModel
@@ -596,6 +619,13 @@ export class DocumentsService {
 
   /** Graf dokumentów (Moduł C): węzły + krawędzie (linki do istniejących plików). */
   async getGraph(workspaceId: string) {
+    const key = `graph:${workspaceId}`;
+    const hit = this.cacheGet<{
+      nodes: { filePath: string; title: string }[];
+      edges: { from: string; to: string }[];
+    }>(key);
+    if (hit) return hit;
+
     const docs = await this.documentModel
       .find({ workspaceId })
       .select('filePath title links.outgoing')
@@ -608,7 +638,9 @@ export class DocumentsService {
         if (paths.has(to)) edges.push({ from: d.filePath, to });
       }
     }
-    return { nodes, edges };
+    const result = { nodes, edges };
+    this.cacheSet(key, result);
+    return result;
   }
 
   /** Statystyki workspace liczone z realnych danych (rewizje = edycje). */
@@ -849,6 +881,19 @@ export class DocumentsService {
    * zepsute linki. Liczy też sieroty (bez wejść/wyjść) i strony nieświeże (30+ dni).
    */
   async healthReport(workspaceId: string) {
+    const key = `health:${workspaceId}`;
+    const hit = this.cacheGet<{
+      ok: boolean;
+      counts: {
+        documents: number;
+        brokenLinks: number;
+        orphans: number;
+        stale: number;
+      };
+      brokenLinks: unknown[];
+    }>(key);
+    if (hit) return hit;
+
     const docs = await this.documentModel
       .find({ workspaceId })
       .select('filePath links.outgoing updatedAt')
@@ -875,7 +920,7 @@ export class DocumentsService {
     }
 
     const brokenLinks = await this.getBrokenLinks(workspaceId);
-    return {
+    const result = {
       ok: brokenLinks.length === 0,
       counts: {
         documents: docs.length,
@@ -885,6 +930,8 @@ export class DocumentsService {
       },
       brokenLinks,
     };
+    this.cacheSet(key, result);
+    return result;
   }
 
   /**
@@ -1344,6 +1391,7 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
       updatedBy,
     );
 
+    this.invalidateWorkspace(workspaceId);
     return { moved: true, from, to, refactoredLinks };
   }
 
@@ -1384,6 +1432,7 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
       { $pull: { 'links.incoming': filePath } },
     );
 
+    this.invalidateWorkspace(workspaceId);
     return { deleted: true, filePath };
   }
 
