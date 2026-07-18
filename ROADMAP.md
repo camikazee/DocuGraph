@@ -58,7 +58,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ## 🎯 Milestone 2 — Notifications & collaboration
 *Turn "watching" into a real collaboration loop.*
 
-- [ ] **In-app notifications page** (full history, not just the dropdown)
+- [x] **In-app notifications page** — `/notifications` with All/Unread filter, mark-all-read, click-through (marks read); bell dropdown links to it
 - [ ] **More event types** — rename, delete, comment, @mention, broken-link introduced
 - [ ] **Email notifications** — instant + daily/weekly digest, per-user opt-in
 - [ ] **Notification preferences** — per-workspace / per-document / per-event

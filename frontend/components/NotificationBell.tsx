@@ -4,26 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useProfile } from '@/lib/useProfile';
-
-interface Notification {
-  id: string;
-  filePath: string;
-  title: string;
-  kind: string;
-  actor: string;
-  read: boolean;
-  createdAt: string;
-}
-
-function timeAgo(iso: string): string {
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'just now';
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
+import { AppNotification, timeAgo } from '@/lib/notifications';
 
 export function NotificationBell() {
   const { profile } = useProfile();
@@ -32,7 +13,7 @@ export function NotificationBell() {
 
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<Notification[] | null>(null);
+  const [items, setItems] = useState<AppNotification[] | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -88,7 +69,7 @@ export function NotificationBell() {
     setItems(null);
     if (!ws) return;
     try {
-      const list = await apiFetch<Notification[]>(
+      const list = await apiFetch<AppNotification[]>(
         `/workspaces/${ws}/documents/notifications`,
       );
       setItems(list);
@@ -97,7 +78,7 @@ export function NotificationBell() {
     }
   }
 
-  async function openItem(n: Notification) {
+  async function openItem(n: AppNotification) {
     setOpen(false);
     if (ws && !n.read) {
       try {
@@ -203,6 +184,15 @@ export function NotificationBell() {
               ))
             )}
           </div>
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push('/notifications');
+            }}
+            className="w-full border-t border-line px-4 py-2.5 text-center text-[12px] font-medium text-acc transition hover:bg-rowhover"
+          >
+            See all notifications
+          </button>
         </div>
       )}
     </>
