@@ -31,6 +31,7 @@ import { DocumentsService } from './documents.service';
 import { GitPublishService } from './git-publish.service';
 import { AutoPublishService } from './auto-publish.service';
 import { UsersService } from '../users/users.service';
+import { AuditService } from '../audit/audit.service';
 
 @Controller('workspaces/:id/documents')
 @UseGuards(CombinedAuthGuard)
@@ -42,7 +43,13 @@ export class DocumentsController {
     private readonly autoPublish: AutoPublishService,
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
+
+  /** Aktor akcji: zalogowany user (JWT) albo null dla tokenu CI. */
+  private actorOf(req: RequestWithWorkspace): string | null {
+    return req.authType === 'jwt' ? req.user.userId : null;
+  }
 
   @Post()
   @UseGuards(RolesGuard)
@@ -233,8 +240,20 @@ export class DocumentsController {
   @Put('source')
   @UseGuards(RolesGuard)
   @Roles(Role.Owner)
-  setSource(@Param('id') workspaceId: string, @Body() dto: SourceDto) {
-    return this.workspacesService.setSource(workspaceId, dto);
+  async setSource(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: SourceDto,
+  ) {
+    const result = await this.workspacesService.setSource(workspaceId, dto);
+    await this.audit.log({
+      workspaceId,
+      actorId: this.actorOf(req),
+      action: 'source.configured',
+      target: dto.repo ?? null,
+      metadata: { branch: dto.branch, bidirectional: dto.bidirectional },
+    });
+    return result;
   }
 
   @Get('source/webhook')
@@ -291,7 +310,7 @@ export class DocumentsController {
       }
     }
 
-    return this.gitPublish.publish({
+    const result = await this.gitPublish.publish({
       workspaceId,
       remote,
       branch,
@@ -299,6 +318,14 @@ export class DocumentsController {
       authorName,
       authorEmail,
     });
+    await this.audit.log({
+      workspaceId,
+      actorId: this.actorOf(req),
+      action: 'documents.published',
+      target: branch,
+      metadata: { pushed: result.pushed, commit: result.commit ?? null },
+    });
+    return result;
   }
 
   @Post('move')
@@ -309,13 +336,19 @@ export class DocumentsController {
     @Req() req: RequestWithWorkspace,
     @Body() dto: MoveDocumentDto,
   ) {
-    const updatedBy = req.authType === 'jwt' ? req.user.userId : null;
+    const updatedBy = this.actorOf(req);
     const result = await this.documentsService.moveDocument(
       workspaceId,
       dto.from,
       dto.to,
       updatedBy,
     );
+    await this.audit.log({
+      workspaceId,
+      actorId: updatedBy,
+      action: 'document.moved',
+      target: `${dto.from} → ${dto.to}`,
+    });
     this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
     return result;
   }

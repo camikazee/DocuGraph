@@ -176,4 +176,36 @@ describe('Audit log (e2e)', () => {
     const actions = await auditActions();
     expect(actions).toContain('member.removed');
   });
+
+  it('records document-level events (source config + move)', async () => {
+    await request(http())
+      .put(`/api/v1/workspaces/${ws}/documents/source`)
+      .set(bearer(ownerToken))
+      .send({ provider: 'github', repo: 'octocat/docs', branch: 'main' })
+      .expect(200);
+
+    await request(http())
+      .post(`/api/v1/workspaces/${ws}/documents`)
+      .set(bearer(ownerToken))
+      .send({ file_path: 'a.md', content_raw: '# A' })
+      .expect(201);
+    await request(http())
+      .post(`/api/v1/workspaces/${ws}/documents/move`)
+      .set(bearer(ownerToken))
+      .send({ from: 'a.md', to: 'b.md' })
+      .expect(201);
+
+    const res = await request(http())
+      .get(`/api/v1/workspaces/${ws}/audit`)
+      .set(bearer(ownerToken))
+      .expect(200);
+    const actions = res.body.map((e: { action: string }) => e.action);
+    expect(actions).toEqual(
+      expect.arrayContaining(['source.configured', 'document.moved']),
+    );
+    const moved = res.body.find(
+      (e: { action: string }) => e.action === 'document.moved',
+    );
+    expect(moved.target).toBe('a.md → b.md');
+  });
 });

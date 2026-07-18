@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -161,12 +162,27 @@ export default function TeamPage() {
 
   return (
     <AppShell>
-      <h1 className="text-[28px] font-bold tracking-tight text-fg">
-        Team management
-      </h1>
-      <p className="mb-7 mt-1.5 text-sm text-fg3">
-        Invite your team and manage their workspace access roles.
-      </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-[28px] font-bold tracking-tight text-fg">
+            Team management
+          </h1>
+          <p className="mb-7 mt-1.5 text-sm text-fg3">
+            Invite your team and manage their workspace access roles.
+          </p>
+        </div>
+        {myRole === 'owner' && (
+          <Link
+            href="/audit"
+            className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc"
+          >
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5l5.5 2.2v3.6c0 3.3-2.3 5.4-5.5 6.7-3.2-1.3-5.5-3.4-5.5-6.7V3.7L8 1.5Z" stroke="var(--accfg)" strokeWidth="1.2" strokeLinejoin="round" />
+            </svg>
+            Audit log
+          </Link>
+        )}
+      </div>
 
       {/* toolbar */}
       <div className="mb-5 flex items-center gap-3">

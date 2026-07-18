@@ -20,6 +20,7 @@ import { WorkspaceStorageService } from './workspace-storage.service';
 import { MarkdownParserService } from './markdown-parser.service';
 import { GitPublishService } from './git-publish.service';
 import { AutoPublishService } from './auto-publish.service';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AutoPublishService } from './auto-publish.service';
     WorkspacesModule, // WorkspacesService
     ApiKeysModule, // ApiKeysService
     UsersModule, // UsersService (autor commita w „Publish to Git")
+    AuditModule, // AuditService (dziennik zdarzeń doc-level)
   ],
   controllers: [DocumentsController, WebhooksController],
   providers: [

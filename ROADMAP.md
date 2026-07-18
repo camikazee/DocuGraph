@@ -48,7 +48,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **UUID public identifiers** — audit confirmed all public ids are UUID/filePath; closed the last raw `_id` leak in the full-document response (`updatedBy` now resolves to author name)
 - [x] **Observability** — per-request id (`x-request-id`, echoed + in error bodies), HTTP access log, liveness `/health` + readiness `/ready` (503 when DB down)
 - [ ] **Error tracking** — wire Sentry (or equivalent) on backend + frontend
-- [~] **Audit log** — access/admin events recorded (member joined / role changed / removed, invitation created/revoked, API key created/revoked) with actor + target; Owner-only `GET /workspaces/:id/audit`. Follow-up: document-level events (publish/delete) + a frontend audit view
+- [x] **Audit log** — access/admin + document-level events (member joined/role changed/removed, invitation created/revoked, API key created/revoked, repository configured, published, document moved) with actor + target; Owner-only `GET /workspaces/:id/audit` and an Owner-only `/audit` view (linked from Team)
 - [ ] **Backups** — documented Mongo backup/restore + volume snapshot story
 - [ ] **Secrets** — production secret management (not `.env` on disk)
 - [x] **CI pipeline** — GitHub Actions on every push/PR: backend (lint · unit · e2e · build) + frontend (typecheck · unit · build); enforced prettier across the backend
