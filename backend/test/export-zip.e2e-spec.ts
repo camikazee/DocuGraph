@@ -85,4 +85,36 @@ describe('Multi-page ZIP export (e2e)', () => {
     expect(readme).toContain('href="api/overview.html"');
     expect(readme).toContain('href="style.css"');
   });
+
+  it('embeds referenced images as data URIs (self-contained)', async () => {
+    const PNG = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const up = await request(http())
+      .post(`/api/v1/workspaces/${ws}/assets`)
+      .set('Authorization', auth())
+      .attach('file', PNG, { filename: 'logo.png', contentType: 'image/png' })
+      .expect(201);
+    const assetId = up.body.id as string;
+
+    await request(http())
+      .post(`/api/v1/workspaces/${ws}/documents`)
+      .set('Authorization', auth())
+      .send({
+        file_path: 'img.md',
+        content_raw: `# Img\n\n![logo](http://api/public/workspaces/${ws}/assets/${assetId})`,
+      })
+      .expect(201);
+
+    const res = await request(http())
+      .get(`/api/v1/workspaces/${ws}/documents/export.zip`)
+      .set('Authorization', auth())
+      .responseType('blob')
+      .expect(200);
+    const zip = await JSZip.loadAsync(res.body as Buffer);
+    const html = await zip.file('img.html')!.async('string');
+    expect(html).toContain('data:image/png;base64,');
+    expect(html).not.toContain(`/assets/${assetId}`);
+  });
 });

@@ -25,6 +25,7 @@ import { ConfigService } from '@nestjs/config';
 import { MailerService } from '../common/mailer/mailer.service';
 import { UsersService } from '../users/users.service';
 import { NotificationPreferencesService } from '../notification-preferences/notification-preferences.service';
+import { MediaService } from '../media/media.service';
 import { lineDiff } from './diff.util';
 
 @Injectable()
@@ -48,7 +49,41 @@ export class DocumentsService {
     private readonly usersService: UsersService,
     private readonly preferences: NotificationPreferencesService,
     private readonly config: ConfigService,
+    private readonly media: MediaService,
   ) {}
+
+  /**
+   * Zamienia `<img src=".../assets/<uuid>">` na osadzone data-URI (base64),
+   * aby eksport był samowystarczalny (bez zależności od działającego API).
+   * Assety nieczytelne (np. wolumen offline) zostają z oryginalnym src.
+   */
+  private async embedImages(
+    html: string,
+    workspaceId: string,
+  ): Promise<string> {
+    const re = /src="([^"]*\/assets\/([0-9a-fA-F-]{36})[^"]*)"/g;
+    const uuids = new Set<string>();
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) !== null) uuids.add(m[2]);
+    if (uuids.size === 0) return html;
+
+    const dataUri = new Map<string, string>();
+    for (const uuid of uuids) {
+      try {
+        const { buffer, mimeType } = await this.media.serve(workspaceId, uuid);
+        dataUri.set(
+          uuid,
+          `data:${mimeType};base64,${buffer.toString('base64')}`,
+        );
+      } catch {
+        /* asset unreadable — keep the original src */
+      }
+    }
+    return html.replace(re, (full, _src: string, uuid: string) => {
+      const data = dataUri.get(uuid);
+      return data ? `src="${data}"` : full;
+    });
+  }
 
   // ---- Telemetria: odczyty + obserwacje ----
 
@@ -951,8 +986,9 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
     zip.file('style.css', this.docsCss());
     for (const d of docs) {
       const thisHtml = htmlPathFor(d.filePath);
+      const embedded = await this.embedImages(d.contentHtml ?? '', workspaceId);
       const main = `<div class="path">${esc(d.filePath)}</div>${rewrite(
-        d.contentHtml ?? '',
+        embedded,
         d.filePath,
         thisHtml,
       )}`;
@@ -1019,14 +1055,19 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
       )
       .join('');
 
-    const sections = docs
-      .map(
-        (d) =>
-          `<section id="${slug(d.filePath)}"><div class="path">${esc(
+    const sections = (
+      await Promise.all(
+        docs.map(async (d) => {
+          const embedded = await this.embedImages(
+            d.contentHtml ?? '',
+            workspaceId,
+          );
+          return `<section id="${slug(d.filePath)}"><div class="path">${esc(
             d.filePath,
-          )}</div>${rewrite(d.contentHtml ?? '', d.filePath)}</section>`,
+          )}</div>${rewrite(embedded, d.filePath)}</section>`;
+        }),
       )
-      .join('\n');
+    ).join('\n');
 
     return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8" />

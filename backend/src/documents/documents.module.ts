@@ -24,6 +24,7 @@ import { DigestCron } from './digest.cron';
 import { AuditModule } from '../audit/audit.module';
 import { MailerModule } from '../common/mailer/mailer.module';
 import { NotificationPreferencesModule } from '../notification-preferences/notification-preferences.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { NotificationPreferencesModule } from '../notification-preferences/notif
     AuditModule, // AuditService (dziennik zdarzeń doc-level)
     MailerModule, // e-mail o zmianach obserwowanych dokumentów
     NotificationPreferencesModule, // opt-in na e-maile
+    MediaModule, // odczyt bajtów assetów (osadzanie obrazów w eksporcie)
   ],
   controllers: [DocumentsController, WebhooksController],
   providers: [

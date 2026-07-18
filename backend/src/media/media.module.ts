@@ -27,5 +27,6 @@ import { ProviderFactory } from './providers/provider.factory';
   ],
   controllers: [MediaController, MediaPublicController],
   providers: [MediaService, ProviderFactory],
+  exports: [MediaService],
 })
 export class MediaModule {}
