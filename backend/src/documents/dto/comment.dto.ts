@@ -1,8 +1,11 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -26,6 +29,13 @@ export class AddCommentDto {
   @MinLength(1)
   @MaxLength(2000)
   body: string;
+
+  /** Publiczne uuid wzmiankowanych członków workspace (z autouzupełniania). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('4', { each: true })
+  mentions?: string[];
 }
 
 export class ResolveCommentDto {

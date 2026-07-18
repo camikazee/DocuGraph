@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn';
 import { prose } from '@/lib/prose';
 import { apiFetch, ApiError } from '@/lib/api';
 import { useProfile } from '@/lib/useProfile';
+import { MentionTextarea, MentionMember } from '@/components/MentionTextarea';
 
 interface Comment {
   id: string;
@@ -53,8 +54,17 @@ function ReviewContent() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
+  const [draftMentions, setDraftMentions] = useState<string[]>([]);
+  const [members, setMembers] = useState<MentionMember[]>([]);
   const [replies, setReplies] = useState<Record<number, string>>({});
   const [approved, setApproved] = useState(false);
+
+  useEffect(() => {
+    if (!ws) return;
+    apiFetch<{ userId: string; name: string }[]>(`/workspaces/${ws}/members`)
+      .then((m) => setMembers(m.map((x) => ({ userId: x.userId, name: x.name }))))
+      .catch(() => setMembers([]));
+  }, [ws]);
 
   const loadComments = useCallback(async () => {
     if (!ws || !path) return;
@@ -103,7 +113,7 @@ function ReviewContent() {
 
   const openCount = threads.filter((t) => !t.resolved).length;
 
-  async function addComment(line: number, body: string) {
+  async function addComment(line: number, body: string, mentions: string[] = []) {
     if (!ws || !body.trim()) return;
     try {
       await apiFetch(`/workspaces/${ws}/documents/comments`, {
@@ -113,6 +123,7 @@ function ReviewContent() {
           line,
           quote: blockText(blocks[line] ?? ''),
           body: body.trim(),
+          ...(mentions.length ? { mentions } : {}),
         }),
       });
       await loadComments();
@@ -228,22 +239,24 @@ function ReviewContent() {
                 <div className="mb-2 border-l-2 border-capbd pl-2 text-[12px] italic text-fg3">
                   &quot;{blockText(blocks[selected] ?? '')}&quot;
                 </div>
-                <textarea
+                <MentionTextarea
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
+                  onChange={setDraft}
+                  onMentionsChange={setDraftMentions}
+                  members={members}
                   rows={3}
-                  placeholder="Add a comment…"
+                  placeholder="Add a comment… use @ to mention"
                   className="w-full resize-none rounded-lg border border-capbd bg-bg px-3 py-2 text-[13px] text-fg outline-none focus:border-acc"
                 />
                 <div className="mt-2 flex justify-end gap-2">
                   <button
-                    onClick={() => { setSelected(null); setDraft(''); }}
+                    onClick={() => { setSelected(null); setDraft(''); setDraftMentions([]); }}
                     className="rounded-lg px-3 py-1.5 text-[12.5px] text-fg3 hover:text-fg2"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={async () => { await addComment(selected, draft); setDraft(''); }}
+                    onClick={async () => { await addComment(selected, draft, draftMentions); setDraft(''); setDraftMentions([]); }}
                     className="rounded-lg bg-acc px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90"
                   >
                     Comment

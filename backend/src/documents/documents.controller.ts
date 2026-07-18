@@ -199,13 +199,24 @@ export class DocumentsController {
   }
 
   @Post('comments')
-  addComment(
+  async addComment(
     @Param('id') workspaceId: string,
     @Req() req: RequestWithWorkspace,
     @Body() dto: AddCommentDto,
   ) {
     if (req.authType !== 'jwt' || !req.user.userId) {
       throw new BadRequestException('Comments require a signed-in user');
+    }
+    // Rozwiąż wzmianki (uuid → wewn. id) tylko dla realnych członków workspace.
+    const mentionIds: string[] = [];
+    for (const uuid of dto.mentions ?? []) {
+      const internal = await this.workspacesService.resolveUserId(uuid);
+      if (
+        internal &&
+        (await this.workspacesService.findMembership(workspaceId, internal))
+      ) {
+        mentionIds.push(internal);
+      }
     }
     return this.documentsService.addComment(
       workspaceId,
@@ -214,6 +225,7 @@ export class DocumentsController {
       dto.quote ?? '',
       dto.body,
       req.user.userId,
+      mentionIds,
     );
   }
 

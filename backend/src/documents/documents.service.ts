@@ -122,6 +122,7 @@ export class DocumentsService {
     quote: string,
     body: string,
     author: string | null,
+    mentionUserIds: string[] = [],
   ) {
     await this.commentModel.create({
       workspaceId,
@@ -132,19 +133,34 @@ export class DocumentsService {
       author,
       resolved: false,
     });
-    // Powiadom obserwujących dokument o nowym komentarzu (poza autorem).
     const doc = await this.documentModel
       .findOne({ workspaceId, filePath })
       .select('title')
       .lean()
       .exec();
+    const title = doc?.title || filePath;
+
+    // Wzmiankowani dostają silniejsze powiadomienie 'mention' — i są wyłączeni
+    // z powiadomienia 'comment' dla obserwujących, by nie dublować.
+    const mentions = new Set(mentionUserIds.filter((id) => id !== author));
     await this.notifyWatchers(
       workspaceId,
       filePath,
-      doc?.title || filePath,
+      title,
       author,
       'comment',
+      mentions,
     );
+    if (mentions.size > 0) {
+      await this.notifyUserIds(
+        workspaceId,
+        filePath,
+        title,
+        [...mentions].map((id) => new Types.ObjectId(id)),
+        'mention',
+        author,
+      );
+    }
     return this.listComments(workspaceId, filePath);
   }
 
@@ -231,18 +247,41 @@ export class DocumentsService {
     title: string,
     actorId: string | null,
     kind = 'changed',
+    exclude: Set<string> = new Set(),
   ): Promise<void> {
     const watchers = await this.watchModel
       .find({ workspaceId, filePath })
       .select('userId')
       .lean()
       .exec();
-    const recipients = watchers
-      .map((w) => w.userId)
-      .filter((uid) => !actorId || uid.toString() !== actorId);
-    if (recipients.length === 0) return;
+    await this.notifyUserIds(
+      workspaceId,
+      filePath,
+      title,
+      watchers.map((w) => w.userId),
+      kind,
+      actorId,
+      exclude,
+    );
+  }
+
+  /** In-app + e-mail dla wskazanych odbiorców (poza autorem i `exclude`). */
+  private async notifyUserIds(
+    workspaceId: string,
+    filePath: string,
+    title: string,
+    recipients: Types.ObjectId[],
+    kind: string,
+    actorId: string | null,
+    exclude: Set<string> = new Set(),
+  ): Promise<void> {
+    const filtered = recipients.filter((uid) => {
+      const s = uid.toString();
+      return s !== actorId && !exclude.has(s);
+    });
+    if (filtered.length === 0) return;
     await this.notificationModel.insertMany(
-      recipients.map((userId) => ({
+      filtered.map((userId) => ({
         workspaceId,
         userId,
         filePath,
@@ -251,7 +290,7 @@ export class DocumentsService {
         actorId: actorId ?? null,
       })),
     );
-    await this.emailWatchers(recipients, filePath, title, kind, actorId);
+    await this.emailWatchers(filtered, filePath, title, kind, actorId);
   }
 
   /** Wysyła e-mail do obserwujących, którzy włączyli powiadomienia mailowe. */

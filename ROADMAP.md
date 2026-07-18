@@ -63,7 +63,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [~] **Email notifications** — instant email to opted-in watchers on watched-document events (digest still open)
 - [~] **Notification preferences** — per-user email opt-in (`/notification-preferences`); per-workspace / per-document granularity still open
 - [ ] **Comments & review workflow** — threads, resolve, request changes
-- [ ] **@mentions** with autocomplete
+- [x] **@mentions** — mention workspace members in a comment via `@` autocomplete; mentioned users get a `mention` notification (+ email if opted in)
 
 ## 🎯 Milestone 3 — Publishing & export
 *Make published docs first-class.*

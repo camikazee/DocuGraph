@@ -200,6 +200,40 @@ describe('Notifications for watched documents (e2e)', () => {
     });
   });
 
+  it('notifies a mentioned member with a mention notification', async () => {
+    const members = await request(http())
+      .get(`/api/v1/workspaces/${ws}/members`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    const memberUuid = members.body.find(
+      (m: { name: string; userId: string }) => m.name === 'Member',
+    ).userId;
+
+    await request(http())
+      .post(`/api/v1/workspaces/${ws}/documents/comments`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({
+        path: DOC,
+        line: 1,
+        body: 'ping @Member',
+        mentions: [memberUuid],
+      })
+      .expect(201);
+
+    const list = await request(http())
+      .get(`/api/v1/workspaces/${ws}/documents/notifications?unread=1`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .expect(200);
+    const mention = list.body.find(
+      (n: { kind: string }) => n.kind === 'mention',
+    );
+    expect(mention).toMatchObject({
+      kind: 'mention',
+      filePath: DOC,
+      actor: 'Owner',
+    });
+  });
+
   it('notifies watchers when a watched document is moved and migrates the watch', async () => {
     const NEW = 'guide/installation.md';
     await request(http())

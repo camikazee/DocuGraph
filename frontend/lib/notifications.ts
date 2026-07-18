@@ -12,6 +12,7 @@ export interface AppNotification {
 export function verbFor(kind: string): string {
   if (kind === 'moved') return 'moved';
   if (kind === 'comment') return 'commented on';
+  if (kind === 'mention') return 'mentioned you in';
   return 'updated';
 }
 
