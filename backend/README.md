@@ -43,9 +43,14 @@ npm run start:dev
 Sprawdzenie:
 
 ```bash
-curl http://localhost:3000/api/v1/health
-# { "status": "ok", "db": "up", "timestamp": "..." }
+curl http://localhost:3000/api/v1/health   # liveness — { status:"ok", uptime, timestamp }
+curl http://localhost:3000/api/v1/ready     # readiness — 200 { status:"ready", db:"up" } / 503 gdy baza down
 ```
+
+Każda odpowiedź niesie nagłówek `x-request-id` (z żądania albo wygenerowany),
+odbijany też w ciele błędów jako `requestId`; access-log loguje
+`METODA ścieżka status czas rid=…`. Użyj `/health` do liveness, `/ready` do
+readiness (np. w orchestratorze).
 
 Dokumentacja API (interaktywna): **http://localhost:3000/api/docs**
 

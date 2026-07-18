@@ -14,6 +14,7 @@ interface ErrorResponseBody {
   error: string;
   path: string;
   timestamp: string;
+  requestId?: string;
 }
 
 /**
@@ -48,9 +49,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
+    const requestId = (request as Request & { requestId?: string }).requestId;
+
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
-        `${request.method} ${request.url}`,
+        `${request.method} ${request.url} rid=${requestId ?? '-'}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     }
@@ -61,6 +64,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error,
       path: request.url,
       timestamp: new Date().toISOString(),
+      ...(requestId ? { requestId } : {}),
     };
 
     response.status(status).json(responseBody);
