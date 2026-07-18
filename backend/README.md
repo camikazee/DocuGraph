@@ -122,6 +122,7 @@ src/
 | Metoda | Ścieżka | Opis |
 |---|---|---|
 | POST | `/workspaces/:id/documents` | dwufazowy zapis `{ file_path, content_raw }` (dysk + Mongo) |
+| DELETE | `/workspaces/:id/documents?path=…` | usuwa dokument (plik + rewizje + komentarze), powiadamia obserwujących |
 | GET | `/workspaces/:id/documents` | lista dokumentów |
 | GET | `/workspaces/:id/documents/by-path?path=…` | pełny dokument (HTML, metadata, linki) |
 | GET | `/workspaces/:id/documents/health` | zwięzłe zdrowie docs (`ok`, broken/orphan/stale) — pod CI |

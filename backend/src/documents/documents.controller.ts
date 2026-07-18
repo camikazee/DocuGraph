@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -360,6 +361,33 @@ export class DocumentsController {
       actorId: updatedBy,
       action: 'document.moved',
       target: `${dto.from} → ${dto.to}`,
+    });
+    this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
+    return result;
+  }
+
+  @Delete()
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async remove(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Query('path') path: string,
+  ) {
+    if (!path || typeof path !== 'string') {
+      throw new BadRequestException('Query param "path" must be a string');
+    }
+    const deletedBy = this.actorOf(req);
+    const result = await this.documentsService.deleteDocument(
+      workspaceId,
+      path,
+      deletedBy,
+    );
+    await this.audit.log({
+      workspaceId,
+      actorId: deletedBy,
+      action: 'document.deleted',
+      target: path,
     });
     this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
     return result;

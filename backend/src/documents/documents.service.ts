@@ -1172,6 +1172,46 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
     return { moved: true, from, to, refactoredLinks };
   }
 
+  /**
+   * Usuwa dokument: powiadamia obserwujących ('deleted'), po czym kasuje plik,
+   * rekord, rewizje, komentarze i obserwacje oraz czyści backlinki wskazujące
+   * na ten dokument.
+   */
+  async deleteDocument(
+    workspaceId: string,
+    filePathRaw: string,
+    deletedBy: string | null,
+  ) {
+    const filePath = path.posix.normalize(filePathRaw).replace(/^(\.\/)+/, '');
+    const doc = await this.documentModel
+      .findOne({ workspaceId, filePath })
+      .select('title')
+      .exec();
+    if (!doc) throw new NotFoundException('Document not found');
+
+    // Powiadom obserwujących zanim skasujemy obserwacje.
+    await this.notifyWatchers(
+      workspaceId,
+      filePath,
+      doc.title,
+      deletedBy,
+      'deleted',
+    );
+
+    await this.storage.deleteFile(workspaceId, filePath);
+    await this.documentModel.deleteOne({ workspaceId, filePath });
+    await this.revisionModel.deleteMany({ workspaceId, filePath });
+    await this.commentModel.deleteMany({ workspaceId, filePath });
+    await this.watchModel.deleteMany({ workspaceId, filePath });
+    // Zdejmij ten plik z backlinków innych dokumentów.
+    await this.documentModel.updateMany(
+      { workspaceId },
+      { $pull: { 'links.incoming': filePath } },
+    );
+
+    return { deleted: true, filePath };
+  }
+
   /** Przenosi obserwacje `from`→`to` i powiadamia obserwujących (poza autorem). */
   private async migrateWatchesAndNotifyMove(
     workspaceId: string,

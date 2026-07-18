@@ -28,11 +28,12 @@ const ACTION_LABELS: Record<string, string> = {
   'source.configured': 'Repository configured',
   'documents.published': 'Published to Git',
   'document.moved': 'Document moved',
+  'document.deleted': 'Document deleted',
 };
 
 // Kolor akcentu wg „wagi" zdarzenia (usunięcia/rewokacje na czerwono).
 function toneFor(action: string): string {
-  if (/removed|revoked/.test(action)) return 'bg-red-500';
+  if (/removed|revoked|deleted/.test(action)) return 'bg-red-500';
   if (/created|joined|configured|published/.test(action)) return 'bg-emerald-500';
   return 'bg-acc';
 }

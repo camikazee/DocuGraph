@@ -2,10 +2,11 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LogoMark } from '@/components/ui/Logo';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { NoAccess } from '@/components/ui/NoAccess';
+import { useToast } from '@/components/ui/Toast';
 import { apiBaseUrl, apiFetch, ApiError } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { cn } from '@/lib/cn';
@@ -49,6 +50,24 @@ function ReaderContent() {
   const path = params.get('path') ?? '';
   const { profile, error } = useProfile();
   const ws = profile?.workspaces[0]?.id;
+  const role = profile?.workspaces[0]?.role;
+  const router = useRouter();
+  const { toast } = useToast();
+
+  async function deleteDoc() {
+    if (!ws) return;
+    if (!window.confirm(`Delete "${path}"? This cannot be undone.`)) return;
+    try {
+      await apiFetch(
+        `/workspaces/${ws}/documents?path=${encodeURIComponent(path)}`,
+        { method: 'DELETE' },
+      );
+      toast('Document deleted', 'success');
+      router.push('/documents');
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Delete failed', 'error');
+    }
+  }
 
   const [docs, setDocs] = useState<DocItem[]>([]);
   const [doc, setDoc] = useState<FullDoc | null>(null);
@@ -290,6 +309,17 @@ function ReaderContent() {
                   </svg>
                   Edit
                 </Link>
+                {(role === 'owner' || role === 'editor') && (
+                  <button
+                    onClick={deleteDoc}
+                    className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-red-500 hover:text-red-400"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 4.5h10M6.5 4.5V3h3v1.5M5 4.5l.5 8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1l.5-8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Delete
+                  </button>
+                )}
               </div>
               <h1 className="mb-2.5 text-[40px] font-bold leading-[1.12] tracking-tight text-fg">
                 {doc.title}
