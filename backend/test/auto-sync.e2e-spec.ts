@@ -139,15 +139,11 @@ describe('Auto bidirectional sync (e2e)', () => {
   it('does not push when bidirectional sync is off', async () => {
     await setSource({ bidirectional: false }).expect(200);
 
-    // Let any debounced push scheduled by earlier tests fully drain, then
-    // sample the baseline — so we only assert about THIS edit, not a late one.
-    let before = commitCount();
-    await waitFor(() => {
-      const now = commitCount();
-      const stable = now === before;
-      before = now;
-      return stable;
-    });
+    // Wait until the push queue is genuinely quiet — a still-in-flight push from
+    // an earlier test could otherwise land after we sample the baseline. We
+    // require the commit count to hold steady for a full quiet window (robust
+    // under heavy parallel load, where a git push may take a while).
+    const before = await settleCommitCount();
 
     await addDoc('notes/manual.md', 'should not auto-push').expect(201);
 
@@ -156,4 +152,25 @@ describe('Auto bidirectional sync (e2e)', () => {
     expect(commitCount()).toBe(before);
     expect(fileAt('notes/manual.md')).toBeNull();
   });
+
+  /** Zwraca liczbę commitów, gdy przestanie się zmieniać przez `quietMs`. */
+  async function settleCommitCount(
+    quietMs = 1200,
+    timeoutMs = 12000,
+  ): Promise<number> {
+    let last = commitCount();
+    let stableSince = Date.now();
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await sleep(200);
+      const now = commitCount();
+      if (now !== last) {
+        last = now;
+        stableSince = Date.now();
+      } else if (Date.now() - stableSince >= quietMs) {
+        return now;
+      }
+    }
+    return last;
+  }
 });
