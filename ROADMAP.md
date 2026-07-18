@@ -70,7 +70,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 
 - [x] **Multi-page static site export** — ZIP with a page per document (folders preserved), a shared stylesheet, an index, and internal links/nav rewritten to relative `.html` paths (works from file://)
 - [x] **Embed images in export** — referenced assets are inlined as base64 data URIs in both the single-file and ZIP exports, so they render without a live API (unreadable assets keep their original URL)
-- [ ] **Themed / branded export** + PDF export
+- [~] **Branded export** — exports are titled with the workspace name (single-file + ZIP). PDF export still open (needs headless Chromium)
 - [ ] **Public read-only doc sites** (shareable link, optional auth)
 - [ ] **Versioned docs** — publish from a branch / tag; doc version switcher
 

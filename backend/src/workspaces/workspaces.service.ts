@@ -89,6 +89,16 @@ export class WorkspacesService {
     return this.membershipModel.findOne({ workspaceId, userId }).exec();
   }
 
+  /** Nazwa workspace (do brandingu eksportu), lub null. */
+  async getName(workspaceId: string): Promise<string | null> {
+    const ws = await this.workspaceModel
+      .findById(workspaceId)
+      .select('name')
+      .lean()
+      .exec();
+    return ws?.name ?? null;
+  }
+
   /** Publiczny uuid workspace → wewnętrzne _id (string), lub null. */
   async resolveId(uuid: string): Promise<string | null> {
     const ws = await this.workspaceModel.findOne({ uuid }).select('_id').exec();

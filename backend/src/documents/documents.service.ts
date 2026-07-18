@@ -26,6 +26,7 @@ import { MailerService } from '../common/mailer/mailer.service';
 import { UsersService } from '../users/users.service';
 import { NotificationPreferencesService } from '../notification-preferences/notification-preferences.service';
 import { MediaService } from '../media/media.service';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import { lineDiff } from './diff.util';
 
 @Injectable()
@@ -50,6 +51,7 @@ export class DocumentsService {
     private readonly preferences: NotificationPreferencesService,
     private readonly config: ConfigService,
     private readonly media: MediaService,
+    private readonly workspaces: WorkspacesService,
   ) {}
 
   /**
@@ -924,6 +926,9 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
 
     const esc = (s: string) =>
       s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const brandRaw =
+      (await this.workspaces.getName(workspaceId)) ?? 'Documentation';
+    const brand = esc(brandRaw);
     const resolveRel = (base: string, rel: string) => {
       const stack = base.split('/').slice(0, -1);
       for (const part of rel.split('/')) {
@@ -978,7 +983,7 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
 <title>${esc(title)}</title>
 <link rel="stylesheet" href="${relTo(thisHtml, 'style.css')}" />
 </head><body><div class="layout">
-<nav><a class="title" href="${relTo(thisHtml, 'index.html')}">Documentation</a>${navFor(thisHtml)}</nav>
+<nav><a class="title" href="${relTo(thisHtml, 'index.html')}">${brand}</a>${navFor(thisHtml)}</nav>
 <main>${main}</main>
 </div></body></html>`;
 
@@ -997,9 +1002,9 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
     zip.file(
       'index.html',
       page(
-        'Documentation',
+        brandRaw,
         'index.html',
-        `<h1>Documentation</h1><p>${docs.length} document${
+        `<h1>${brand}</h1><p>${docs.length} document${
           docs.length === 1 ? '' : 's'
         } — pick one from the sidebar.</p>`,
       ),
@@ -1018,6 +1023,9 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
     const slug = (p: string) => 'doc-' + p.replace(/[^a-zA-Z0-9]+/g, '-');
     const esc = (s: string) =>
       s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const brand = esc(
+      (await this.workspaces.getName(workspaceId)) ?? 'Documentation',
+    );
     const byPath = new Set(docs.map((d) => d.filePath));
     const resolveRel = (base: string, rel: string) => {
       const stack = base.split('/').slice(0, -1);
@@ -1072,7 +1080,7 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
     return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Documentation</title>
+<title>${brand}</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font:16px/1.7 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1e293b;background:#fff}
@@ -1096,7 +1104,7 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
 @media(max-width:760px){nav{display:none}main{padding:24px}}
 </style></head>
 <body><div class="layout">
-<nav><div class="title">Documentation</div>${nav}</nav>
+<nav><div class="title">${brand}</div>${nav}</nav>
 <main>${sections}</main>
 </div></body></html>`;
   }

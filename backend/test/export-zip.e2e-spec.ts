@@ -13,6 +13,7 @@ describe('Multi-page ZIP export (e2e)', () => {
   let connection: Connection;
   let token: string;
   let ws: string;
+  let wsName: string;
   const http = () => app.getHttpServer();
   const auth = () => `Bearer ${token}`;
 
@@ -39,9 +40,11 @@ describe('Multi-page ZIP export (e2e)', () => {
       .send({ email: 'zip@example.com', name: 'Zip', password: 'password123' })
       .expect(201);
     token = reg.body.accessToken;
-    ws = (
+    const me = (
       await request(http()).get('/api/v1/auth/me').set('Authorization', auth())
-    ).body.workspaces[0].id;
+    ).body.workspaces[0];
+    ws = me.id;
+    wsName = me.name;
 
     const create = (file_path: string, content_raw: string) =>
       request(http())
@@ -84,6 +87,11 @@ describe('Multi-page ZIP export (e2e)', () => {
     const readme = await zip.file('README.html')!.async('string');
     expect(readme).toContain('href="api/overview.html"');
     expect(readme).toContain('href="style.css"');
+
+    // export is branded with the workspace name
+    const index = await zip.file('index.html')!.async('string');
+    expect(wsName).toBeTruthy();
+    expect(index).toContain(wsName);
   });
 
   it('embeds referenced images as data URIs (self-contained)', async () => {
