@@ -154,11 +154,16 @@ curl -fsS "$API/workspaces/$WS/documents/health" -H "Authorization: Bearer $DG_T
 - **E2E (Supertest):** pełne przepływy — auth/JWT, OAuth (mock), RBAC, izolacja
   A/B, zaproszenia, tokeny CI/CD, dokumenty, media + przenoszenie między wolumenami,
   webhooki (HMAC), publish do Git (lokalne bare repo), auto-sync, reset hasła,
-  rate limiting, scenariusze adversarialne (zob. `SECURITY.md`). Każdy plik e2e
-  używa osobnej bazy per worker Jest.
+  rate limiting, scenariusze adversarialne (zob. `SECURITY.md`).
+
+E2E **nie wymagają zewnętrznej bazy** — każdy plik testowy dostaje własny,
+efemeryczny Mongo w pamięci (`mongodb-memory-server`), więc suite działa
+lokalnie i w CI „z pudełka" i jest bezpieczny przy równoległym uruchomieniu.
+Do debugowania możesz wskazać realny Mongo przez `MONGO_URI_TEST`.
 
 ```bash
-npm test && npm run test:e2e
+npm test && npm run test:e2e          # in-memory Mongo, bez konfiguracji
+MONGO_URI_TEST=mongodb://localhost:27017/dg_test npm run test:e2e  # realny Mongo
 ```
 
 ## Konfiguracja (env)

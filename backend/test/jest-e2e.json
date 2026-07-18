@@ -3,6 +3,9 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "setupFilesAfterEnv": ["<rootDir>/mongo-memory-setup.ts"],
+  "testTimeout": 30000,
+  "maxWorkers": "50%",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   }

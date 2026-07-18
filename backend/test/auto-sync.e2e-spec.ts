@@ -118,7 +118,16 @@ describe('Auto bidirectional sync (e2e)', () => {
 
   it('does not push when bidirectional sync is off', async () => {
     await setSource({ bidirectional: false }).expect(200);
-    const before = commitCount();
+
+    // Let any debounced push scheduled by earlier tests fully drain, then
+    // sample the baseline — so we only assert about THIS edit, not a late one.
+    let before = commitCount();
+    await waitFor(() => {
+      const now = commitCount();
+      const stable = now === before;
+      before = now;
+      return stable;
+    });
 
     await addDoc('notes/manual.md', 'should not auto-push').expect(201);
 

@@ -52,7 +52,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [ ] **Backups** — documented Mongo backup/restore + volume snapshot story
 - [ ] **Secrets** — production secret management (not `.env` on disk)
 - [ ] **CI pipeline** — lint + unit + e2e on every PR (GitHub Actions / Jenkinsfile)
-- [ ] **Fix e2e DB isolation** — per-suite database so the full suite is parallel-safe
+- [x] **Fix e2e DB isolation** — e2e now run on an in-memory Mongo per test file (`mongodb-memory-server`); no external DB, parallel-safe, 120/120 green out of the box (`MONGO_URI_TEST` still overrides to a real Mongo)
 - [ ] **Rate-limit tuning** + abuse protection review
 
 ## 🎯 Milestone 2 — Notifications & collaboration
