@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/interfaces/jwt-payload.interface';
 import { AuthService } from './auth.service';
@@ -22,27 +23,38 @@ import { GithubAuthGuard } from './guards/github-auth.guard';
 import { SlackAuthGuard } from './guards/slack-auth.guard';
 import { OAuthProfile } from './interfaces/oauth-profile.interface';
 
+// Ostrzejszy limit na wrażliwych endpointach auth (brute-force / enumeracja).
+// Czytany z env w czasie importu, więc testy mogą go nadpisać przed startem.
+const AUTH_THROTTLE = {
+  ttl: parseInt(process.env.AUTH_THROTTLE_TTL_MS ?? '60000', 10),
+  limit: parseInt(process.env.AUTH_THROTTLE_LIMIT ?? '10', 10),
+};
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Throttle({ default: AUTH_THROTTLE })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post('login')
+  @Throttle({ default: AUTH_THROTTLE })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
 
   @Post('forgot')
+  @Throttle({ default: AUTH_THROTTLE })
   @HttpCode(200)
   forgot(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.email);
   }
 
   @Post('reset')
+  @Throttle({ default: AUTH_THROTTLE })
   @HttpCode(200)
   reset(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);

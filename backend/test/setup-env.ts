@@ -15,5 +15,7 @@ process.env.JWT_SECRET =
 process.env.JWT_EXPIRES_IN = '1h';
 process.env.BCRYPT_ROUNDS = '4'; // szybciej w testach
 process.env.THROTTLE_LIMIT = '100000'; // praktycznie wyłączony w testach
+// Limit auth wyłączony domyślnie, chyba że spec ustawi go wcześniej (test throttlingu).
+process.env.AUTH_THROTTLE_LIMIT = process.env.AUTH_THROTTLE_LIMIT ?? '100000';
 // Pliki .md w katalogu tymczasowym, osobnym per worker.
 process.env.WORKSPACE_ROOT = path.join(os.tmpdir(), `docugraph-ws-${workerId}`);

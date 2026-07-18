@@ -53,7 +53,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [ ] **Secrets** — production secret management (not `.env` on disk)
 - [x] **CI pipeline** — GitHub Actions on every push/PR: backend (lint · unit · e2e · build) + frontend (typecheck · unit · build); enforced prettier across the backend
 - [x] **Fix e2e DB isolation** — e2e now run on an in-memory Mongo per test file (`mongodb-memory-server`); no external DB, parallel-safe, 120/120 green out of the box (`MONGO_URI_TEST` still overrides to a real Mongo)
-- [ ] **Rate-limit tuning** + abuse protection review
+- [x] **Rate-limit tuning** — stricter, env-configurable throttle on auth endpoints (login/register/forgot/reset, default 10/60s) on top of the global limit; brute-force/enumeration protection with e2e
 
 ## 🎯 Milestone 2 — Notifications & collaboration
 *Turn "watching" into a real collaboration loop.*

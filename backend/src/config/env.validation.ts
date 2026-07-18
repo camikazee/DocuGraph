@@ -48,6 +48,10 @@ export const envValidationSchema = Joi.object({
   THROTTLE_TTL_MS: Joi.number().default(60000),
   THROTTLE_LIMIT: Joi.number().default(100),
 
+  // Ostrzejszy limit dla endpointów auth (login/register/forgot/reset).
+  AUTH_THROTTLE_TTL_MS: Joi.number().default(60000),
+  AUTH_THROTTLE_LIMIT: Joi.number().default(10),
+
   // Katalog bazowy na pliki .md (filesystem = źródło prawdy).
   WORKSPACE_ROOT: Joi.string().default('./workspaces'),
 });
