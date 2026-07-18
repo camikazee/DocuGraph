@@ -36,7 +36,10 @@ describe('Auto bidirectional sync (e2e)', () => {
 
   const commitCount = (): number => {
     try {
-      return parseInt(git(['--git-dir', bare, 'rev-list', '--count', 'main']).trim(), 10);
+      return parseInt(
+        git(['--git-dir', bare, 'rev-list', '--count', 'main']).trim(),
+        10,
+      );
     } catch {
       return 0;
     }
@@ -48,7 +51,10 @@ describe('Auto bidirectional sync (e2e)', () => {
       return null;
     }
   };
-  async function waitFor(fn: () => boolean, timeoutMs = 8000): Promise<boolean> {
+  async function waitFor(
+    fn: () => boolean,
+    timeoutMs = 8000,
+  ): Promise<boolean> {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       if (fn()) return true;
@@ -64,7 +70,11 @@ describe('Auto bidirectional sync (e2e)', () => {
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     );
     app.useGlobalFilters(new AllExceptionsFilter());
     await app.init();
@@ -74,7 +84,11 @@ describe('Auto bidirectional sync (e2e)', () => {
 
     const reg = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ email: 'sync@example.com', name: 'Syncer', password: 'password123' })
+      .send({
+        email: 'sync@example.com',
+        name: 'Syncer',
+        password: 'password123',
+      })
       .expect(201);
     token = reg.body.accessToken as string;
     const me = await request(app.getHttpServer())
@@ -96,7 +110,11 @@ describe('Auto bidirectional sync (e2e)', () => {
   });
 
   it('auto-pushes a document edit when bidirectional sync is on', async () => {
-    await setSource({ branch: 'main', pushRemote: bare, bidirectional: true }).expect(200);
+    await setSource({
+      branch: 'main',
+      pushRemote: bare,
+      bidirectional: true,
+    }).expect(200);
 
     await addDoc('notes/auto.md', '# Auto\n\nversion one').expect(201);
 
@@ -112,7 +130,9 @@ describe('Auto bidirectional sync (e2e)', () => {
     await addDoc('notes/auto.md', '# Auto\n\nversion two').expect(201);
     await addDoc('notes/auto.md', '# Auto\n\nversion three').expect(201);
 
-    const got = await waitFor(() => (fileAt('notes/auto.md') ?? '').includes('version three'));
+    const got = await waitFor(() =>
+      (fileAt('notes/auto.md') ?? '').includes('version three'),
+    );
     expect(got).toBe(true);
   });
 

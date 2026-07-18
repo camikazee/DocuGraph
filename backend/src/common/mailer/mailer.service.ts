@@ -47,7 +47,11 @@ export class MailerService {
     }
   }
 
-  async sendPasswordReset(to: string, token: string, link: string): Promise<void> {
+  async sendPasswordReset(
+    to: string,
+    token: string,
+    link: string,
+  ): Promise<void> {
     const subject = 'Reset your DocuGraph password';
     const text =
       `You requested a password reset.\n\n` +

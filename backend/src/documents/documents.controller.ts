@@ -128,9 +128,13 @@ export class DocumentsController {
     @Query('unread') unread?: string,
   ) {
     if (req.authType !== 'jwt') return [];
-    return this.documentsService.listNotifications(workspaceId, req.user.userId, {
-      unreadOnly: unread === '1' || unread === 'true',
-    });
+    return this.documentsService.listNotifications(
+      workspaceId,
+      req.user.userId,
+      {
+        unreadOnly: unread === '1' || unread === 'true',
+      },
+    );
   }
 
   @Get('notifications/count')
@@ -272,9 +276,9 @@ export class DocumentsController {
         'Configure a push remote first (Connect → publishing).',
       );
     }
-    const source = (await this.workspacesService.getSource(workspaceId)) as
-      | { branch?: string }
-      | null;
+    const source = (await this.workspacesService.getSource(workspaceId)) as {
+      branch?: string;
+    } | null;
     const branch = source?.branch || 'main';
 
     let authorName = 'DocuGraph';

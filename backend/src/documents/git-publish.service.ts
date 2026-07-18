@@ -61,7 +61,10 @@ export class GitPublishService {
     if (!isRepo) await git.init();
 
     await git.addConfig('user.name', opts.authorName || 'DocuGraph');
-    await git.addConfig('user.email', opts.authorEmail || 'docugraph@localhost');
+    await git.addConfig(
+      'user.email',
+      opts.authorEmail || 'docugraph@localhost',
+    );
 
     const remotes = await git.getRemotes(true);
     if (remotes.some((r) => r.name === 'origin')) {

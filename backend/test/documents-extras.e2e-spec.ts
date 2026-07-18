@@ -21,7 +21,13 @@ describe('Document extras: tags + feed (e2e)', () => {
     }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     app.useGlobalFilters(new AllExceptionsFilter());
     await app.init();
 
@@ -30,7 +36,11 @@ describe('Document extras: tags + feed (e2e)', () => {
 
     const reg = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ email: 'extras@example.com', name: 'Extras', password: 'password123' })
+      .send({
+        email: 'extras@example.com',
+        name: 'Extras',
+        password: 'password123',
+      })
       .expect(201);
     token = reg.body.accessToken as string;
     const me = await request(app.getHttpServer())
@@ -42,19 +52,29 @@ describe('Document extras: tags + feed (e2e)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/workspaces/${ws}/documents`)
       .set('Authorization', auth())
-      .send({ file_path: 'api/auth.md', content_raw: '---\ntitle: Authentication\ntags: [api, security]\n---\n\n# Authentication\n' })
+      .send({
+        file_path: 'api/auth.md',
+        content_raw:
+          '---\ntitle: Authentication\ntags: [api, security]\n---\n\n# Authentication\n',
+      })
       .expect(201);
     // a doc with a broken outgoing link (for per-document health)
     await request(app.getHttpServer())
       .post(`/api/v1/workspaces/${ws}/documents`)
       .set('Authorization', auth())
-      .send({ file_path: 'notes/draft.md', content_raw: '# Draft\n\nSee [missing](nope.md).' })
+      .send({
+        file_path: 'notes/draft.md',
+        content_raw: '# Draft\n\nSee [missing](nope.md).',
+      })
       .expect(201);
     // a doc that links to an existing doc (for export anchor rewriting)
     await request(app.getHttpServer())
       .post(`/api/v1/workspaces/${ws}/documents`)
       .set('Authorization', auth())
-      .send({ file_path: 'index.md', content_raw: '# Index\n\nGo to [draft](notes/draft.md).' })
+      .send({
+        file_path: 'index.md',
+        content_raw: '# Index\n\nGo to [draft](notes/draft.md).',
+      })
       .expect(201);
   });
 
@@ -68,7 +88,9 @@ describe('Document extras: tags + feed (e2e)', () => {
       .get(`/api/v1/workspaces/${ws}/documents`)
       .set('Authorization', auth())
       .expect(200);
-    const doc = res.body.find((d: { filePath: string }) => d.filePath === 'api/auth.md');
+    const doc = res.body.find(
+      (d: { filePath: string }) => d.filePath === 'api/auth.md',
+    );
     expect(doc.tags).toEqual(expect.arrayContaining(['api', 'security']));
   });
 
@@ -77,8 +99,12 @@ describe('Document extras: tags + feed (e2e)', () => {
       .get(`/api/v1/workspaces/${ws}/documents`)
       .set('Authorization', auth())
       .expect(200);
-    const auth_ = res.body.find((d: { filePath: string }) => d.filePath === 'api/auth.md');
-    const draft = res.body.find((d: { filePath: string }) => d.filePath === 'notes/draft.md');
+    const auth_ = res.body.find(
+      (d: { filePath: string }) => d.filePath === 'api/auth.md',
+    );
+    const draft = res.body.find(
+      (d: { filePath: string }) => d.filePath === 'notes/draft.md',
+    );
     // api/auth.md links nowhere and nothing links to it → orphan
     expect(auth_.health).toMatchObject({ broken: false, orphan: true });
     // notes/draft.md links to a missing file → broken

@@ -35,9 +35,10 @@ export class AutoPublishService {
   private async run(workspaceId: string): Promise<void> {
     this.running.add(workspaceId);
     try {
-      const source = (await this.workspaces.getSource(workspaceId)) as
-        | { bidirectional?: boolean; branch?: string }
-        | null;
+      const source = (await this.workspaces.getSource(workspaceId)) as {
+        bidirectional?: boolean;
+        branch?: string;
+      } | null;
       if (!source?.bidirectional) return;
 
       const remote = await this.workspaces.getPushRemote(workspaceId);

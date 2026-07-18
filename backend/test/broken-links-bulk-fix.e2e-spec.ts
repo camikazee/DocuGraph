@@ -29,7 +29,11 @@ describe('Bulk-fix broken links (e2e)', () => {
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     );
     app.useGlobalFilters(new AllExceptionsFilter());
     await app.init();
@@ -39,7 +43,11 @@ describe('Bulk-fix broken links (e2e)', () => {
 
     const reg = await request(http())
       .post('/api/v1/auth/register')
-      .send({ email: 'fixer@bulk.test', name: 'Fixer', password: 'password123' })
+      .send({
+        email: 'fixer@bulk.test',
+        name: 'Fixer',
+        password: 'password123',
+      })
       .expect(201);
     token = reg.body.accessToken;
     const me = await request(http())
@@ -52,8 +60,14 @@ describe('Bulk-fix broken links (e2e)', () => {
     await create('api/auth.md', '# Auth\n');
     await create('docs/guide.md', '# Guide\n');
     // Two sources with broken links pointing at wrong paths but matching basenames.
-    await create('README.md', '# Readme\n\n[a](wrong/auth.md) and [g](old/guide.md).');
-    await create('api/overview.md', '# Overview\n\nSee [a](./missing/auth.md).');
+    await create(
+      'README.md',
+      '# Readme\n\n[a](wrong/auth.md) and [g](old/guide.md).',
+    );
+    await create(
+      'api/overview.md',
+      '# Overview\n\nSee [a](./missing/auth.md).',
+    );
     // A broken link with NO possible match → must be skipped.
     await create('notes/draft.md', '# Draft\n\n[x](nope.md).');
   });

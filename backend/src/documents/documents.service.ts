@@ -725,13 +725,10 @@ export class DocumentsService {
 
     // Rewrite internal .md links -> in-page anchors.
     const rewrite = (html: string, fromPath: string) =>
-      html.replace(
-        /href="([^":]+?\.md)((?:#[^"]*)?)"/g,
-        (m, href: string, frag: string) => {
-          const target = resolveRel(fromPath, href);
-          return byPath.has(target) ? `href="#${slug(target)}"` : m;
-        },
-      );
+      html.replace(/href="([^":]+?\.md)((?:#[^"]*)?)"/g, (m, href: string) => {
+        const target = resolveRel(fromPath, href);
+        return byPath.has(target) ? `href="#${slug(target)}"` : m;
+      });
 
     const groups = new Map<string, typeof docs>();
     for (const d of docs) {
@@ -873,9 +870,7 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
       );
       if (brokenInDoc.length === 0) continue;
 
-      const paths = new Set(
-        [...allPaths].filter((p) => p !== d.filePath),
-      );
+      const paths = new Set([...allPaths].filter((p) => p !== d.filePath));
       let content = d.contentRaw;
       let changed = 0;
       const replacedHrefs = new Set<string>();
@@ -895,7 +890,11 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
           replacedHrefs.add(link.original);
           changed++;
         }
-        fixed.push({ from: d.filePath, to: link.canonical, replacement: suggestion });
+        fixed.push({
+          from: d.filePath,
+          to: link.canonical,
+          replacement: suggestion,
+        });
       }
 
       if (changed > 0) {
@@ -1034,7 +1033,9 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
     const [docs, readAgg, broken] = await Promise.all([
       this.documentModel
         .find({ workspaceId })
-        .select('filePath title updatedAt metadata updatedBy contentRaw links.outgoing')
+        .select(
+          'filePath title updatedAt metadata updatedBy contentRaw links.outgoing',
+        )
         .populate<{ updatedBy: { uuid: string } | null }>('updatedBy', 'uuid')
         .sort({ filePath: 1 })
         .exec(),

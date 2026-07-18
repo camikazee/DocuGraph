@@ -288,7 +288,8 @@ export class WorkspacesService {
     // Po włączeniu webhooków generujemy sekret HMAC (raz; nie nadpisujemy).
     if (dto.realtimeWebhooks) {
       const secret = await this.getWebhookSecret(workspaceId);
-      if (!secret) set['source.webhookSecret'] = randomBytes(24).toString('hex');
+      if (!secret)
+        set['source.webhookSecret'] = randomBytes(24).toString('hex');
     }
 
     if (Object.keys(set).length) {
@@ -315,7 +316,10 @@ export class WorkspacesService {
       .select('source.webhookSecret')
       .lean()
       .exec();
-    return (w?.source as { webhookSecret?: string } | undefined)?.webhookSecret ?? null;
+    return (
+      (w?.source as { webhookSecret?: string } | undefined)?.webhookSecret ??
+      null
+    );
   }
 
   /** Konfiguracja webhooka dla właściciela (URL składa frontend z apiBaseUrl). */

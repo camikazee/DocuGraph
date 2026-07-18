@@ -1,5 +1,7 @@
 # DocuGraph
 
+[![CI](https://github.com/camikazee/DocuGraph/actions/workflows/ci.yml/badge.svg)](https://github.com/camikazee/DocuGraph/actions/workflows/ci.yml)
+
 Developer documentation SaaS — Markdown-as-code with Git as the source of
 truth and a MongoDB index. It indexes your Markdown into a living **knowledge
 graph** with backlinks and **health checks** (broken links, orphans, stale

@@ -24,7 +24,11 @@ describe('Notifications for watched documents (e2e)', () => {
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     );
     app.useGlobalFilters(new AllExceptionsFilter());
     await app.init();
@@ -34,7 +38,11 @@ describe('Notifications for watched documents (e2e)', () => {
 
     const owner = await request(http())
       .post('/api/v1/auth/register')
-      .send({ email: 'owner@notif.test', name: 'Owner', password: 'password123' })
+      .send({
+        email: 'owner@notif.test',
+        name: 'Owner',
+        password: 'password123',
+      })
       .expect(201);
     ownerToken = owner.body.accessToken;
     const me = await request(http())
@@ -45,7 +53,11 @@ describe('Notifications for watched documents (e2e)', () => {
 
     const member = await request(http())
       .post('/api/v1/auth/register')
-      .send({ email: 'member@notif.test', name: 'Member', password: 'password123' })
+      .send({
+        email: 'member@notif.test',
+        name: 'Member',
+        password: 'password123',
+      })
       .expect(201);
     memberToken = member.body.accessToken;
 

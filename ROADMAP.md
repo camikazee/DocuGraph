@@ -51,7 +51,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [ ] **Audit log** — who changed/published/deleted what, when
 - [ ] **Backups** — documented Mongo backup/restore + volume snapshot story
 - [ ] **Secrets** — production secret management (not `.env` on disk)
-- [ ] **CI pipeline** — lint + unit + e2e on every PR (GitHub Actions / Jenkinsfile)
+- [x] **CI pipeline** — GitHub Actions on every push/PR: backend (lint · unit · e2e · build) + frontend (typecheck · unit · build); enforced prettier across the backend
 - [x] **Fix e2e DB isolation** — e2e now run on an in-memory Mongo per test file (`mongodb-memory-server`); no external DB, parallel-safe, 120/120 green out of the box (`MONGO_URI_TEST` still overrides to a real Mongo)
 - [ ] **Rate-limit tuning** + abuse protection review
 
@@ -86,6 +86,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ## 🎯 Milestone 5 — Polish & DX
 *The 20% that makes it feel finished.*
 
+- [ ] **Frontend ESLint** — configure `next lint` (eslint-config-next) and add it to CI
 - [ ] **Frontend test coverage** (components + key flows)
 - [ ] **Accessibility audit** (keyboard, focus, contrast, reduced motion)
 - [ ] **Mobile/responsive polish**

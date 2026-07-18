@@ -140,7 +140,8 @@ export class AuthService {
       const expires = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
       await this.usersService.setResetToken(user._id.toString(), hash, expires);
 
-      const appUrl = this.config.get<string>('appUrl') ?? 'http://localhost:3001';
+      const appUrl =
+        this.config.get<string>('appUrl') ?? 'http://localhost:3001';
       const link = `${appUrl.replace(/\/+$/, '')}/reset-password?token=${raw}`;
       await this.mailer.sendPasswordReset(user.email, raw, link);
     }
@@ -155,9 +156,7 @@ export class AuthService {
     token: string,
     newPassword: string,
   ): Promise<{ message: string }> {
-    const user = await this.usersService.findByResetTokenHash(
-      hashToken(token),
-    );
+    const user = await this.usersService.findByResetTokenHash(hashToken(token));
     const expires = user?.passwordResetExpires?.getTime() ?? 0;
     if (!user || expires < Date.now()) {
       throw new BadRequestException('Invalid or expired reset token');

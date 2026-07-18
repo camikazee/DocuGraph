@@ -72,7 +72,11 @@ describe('GitHub webhooks (e2e)', () => {
     await request(app.getHttpServer())
       .put(`/api/v1/workspaces/${workspaceId}/documents/source`)
       .set('Authorization', `Bearer ${ownerToken}`)
-      .send({ provider: 'github', repo: 'octocat/missing', realtimeWebhooks: true })
+      .send({
+        provider: 'github',
+        repo: 'octocat/missing',
+        realtimeWebhooks: true,
+      })
       .expect(200);
 
     const cfg = await request(app.getHttpServer())

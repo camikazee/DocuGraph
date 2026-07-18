@@ -375,7 +375,9 @@ export class MediaService {
       buffer = await srcProvider.get(a.path);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'read failed';
-      throw new BadRequestException(`Could not read from ${source.name}: ${msg}`);
+      throw new BadRequestException(
+        `Could not read from ${source.name}: ${msg}`,
+      );
     }
 
     // Klucz (a.path = uuid-name) jest globalnie unikalny — brak kolizji na celu.
@@ -385,7 +387,9 @@ export class MediaService {
       await dstProvider.put(a.path, buffer, a.mimeType);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'write failed';
-      throw new BadRequestException(`Could not write to ${target.name}: ${msg}`);
+      throw new BadRequestException(
+        `Could not write to ${target.name}: ${msg}`,
+      );
     }
     try {
       await srcProvider.delete(a.path);

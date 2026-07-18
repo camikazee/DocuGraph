@@ -49,7 +49,11 @@ describe('Move asset between volumes (e2e)', () => {
 
     const reg = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ email: 'mover@example.com', name: 'Mover', password: 'password123' })
+      .send({
+        email: 'mover@example.com',
+        name: 'Mover',
+        password: 'password123',
+      })
       .expect(201);
     token = reg.body.accessToken as string;
     const me = await request(app.getHttpServer())
@@ -83,7 +87,9 @@ describe('Move asset between volumes (e2e)', () => {
 
   it('moves the asset to another volume and serves the same bytes from it', async () => {
     const before = await volumes().expect(200);
-    const usedABefore = before.body.find((v: { id: string }) => v.id === volA).storageUsed;
+    const usedABefore = before.body.find(
+      (v: { id: string }) => v.id === volA,
+    ).storageUsed;
     expect(usedABefore).toBe(PNG.length);
 
     const moved = await request(app.getHttpServer())
@@ -102,8 +108,12 @@ describe('Move asset between volumes (e2e)', () => {
 
     // usage accounting followed the bytes
     const after = await volumes().expect(200);
-    expect(after.body.find((v: { id: string }) => v.id === volA).storageUsed).toBe(0);
-    expect(after.body.find((v: { id: string }) => v.id === volB).storageUsed).toBe(PNG.length);
+    expect(
+      after.body.find((v: { id: string }) => v.id === volA).storageUsed,
+    ).toBe(0);
+    expect(
+      after.body.find((v: { id: string }) => v.id === volB).storageUsed,
+    ).toBe(PNG.length);
   });
 
   it('is a no-op when the target is the current volume', async () => {
@@ -125,7 +135,9 @@ describe('Move asset between volumes (e2e)', () => {
 
   it('404s when the asset does not exist', async () => {
     await request(app.getHttpServer())
-      .post(`/api/v1/workspaces/${ws}/assets/00000000-0000-0000-0000-000000000000/move`)
+      .post(
+        `/api/v1/workspaces/${ws}/assets/00000000-0000-0000-0000-000000000000/move`,
+      )
       .set('Authorization', auth())
       .send({ volumeId: volA })
       .expect(404);
@@ -175,6 +187,8 @@ describe('Move asset between volumes (e2e)', () => {
       .get(`/api/v1/workspaces/${ws}/assets`)
       .set('Authorization', auth())
       .expect(200);
-    expect(list.body.find((x: { id: string }) => x.id === id).volumeId).toBe(home);
+    expect(list.body.find((x: { id: string }) => x.id === id).volumeId).toBe(
+      home,
+    );
   });
 });

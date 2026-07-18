@@ -61,7 +61,11 @@ describe('Publish to Git (e2e)', () => {
 
     const reg = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ email: 'pub@example.com', name: 'Publisher', password: 'password123' })
+      .send({
+        email: 'pub@example.com',
+        name: 'Publisher',
+        password: 'password123',
+      })
       .expect(201);
     token = reg.body.accessToken as string;
     const me = await request(app.getHttpServer())
@@ -109,7 +113,10 @@ describe('Publish to Git (e2e)', () => {
     // clone the bare repo and verify the files + commit landed
     const verify = path.join(tmp, 'verify');
     git(tmp, ['clone', bare, verify]);
-    const intro = await fs.readFile(path.join(verify, 'guide/intro.md'), 'utf8');
+    const intro = await fs.readFile(
+      path.join(verify, 'guide/intro.md'),
+      'utf8',
+    );
     const authmd = await fs.readFile(path.join(verify, 'api/auth.md'), 'utf8');
     expect(intro).toContain('Welcome.');
     expect(authmd).toContain('Tokens.');
