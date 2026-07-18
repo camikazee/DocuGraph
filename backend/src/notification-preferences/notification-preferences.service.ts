@@ -9,6 +9,7 @@ import {
 export interface Preferences {
   emailEnabled: boolean;
   digestEnabled: boolean;
+  mutedKinds: string[];
 }
 
 @Injectable()
@@ -24,6 +25,7 @@ export class NotificationPreferencesService {
     return {
       emailEnabled: pref?.emailEnabled ?? false,
       digestEnabled: pref?.digestEnabled ?? false,
+      mutedKinds: pref?.mutedKinds ?? [],
     };
   }
 
@@ -34,8 +36,22 @@ export class NotificationPreferencesService {
       $set.emailEnabled = patch.emailEnabled;
     if (patch.digestEnabled !== undefined)
       $set.digestEnabled = patch.digestEnabled;
+    if (patch.mutedKinds !== undefined) $set.mutedKinds = patch.mutedKinds;
     await this.prefModel.updateOne({ userId }, { $set }, { upsert: true });
     return this.get(userId);
+  }
+
+  /** Spośród `userIds` ci, którzy NIE wyciszyli danego typu zdarzenia. */
+  async notMutingKind(userIds: string[], kind: string): Promise<Set<string>> {
+    const result = new Set(userIds);
+    if (userIds.length === 0) return result;
+    const muting = await this.prefModel
+      .find({ userId: { $in: userIds }, mutedKinds: kind })
+      .select('userId')
+      .lean()
+      .exec();
+    for (const p of muting) result.delete(p.userId.toString());
+    return result;
   }
 
   /** Podzbiór userIds z włączonym e-mailem natychmiastowym. */

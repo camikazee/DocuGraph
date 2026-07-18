@@ -60,20 +60,42 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [emailPref, setEmailPref] = useState<boolean | null>(null);
   const [digestPref, setDigestPref] = useState<boolean | null>(null);
+  const [muted, setMuted] = useState<string[] | null>(null);
 
   useEffect(() => {
-    apiFetch<{ emailEnabled: boolean; digestEnabled: boolean }>(
-      '/notification-preferences',
-    )
+    apiFetch<{
+      emailEnabled: boolean;
+      digestEnabled: boolean;
+      mutedKinds: string[];
+    }>('/notification-preferences')
       .then((p) => {
         setEmailPref(p.emailEnabled);
         setDigestPref(p.digestEnabled);
+        setMuted(p.mutedKinds);
       })
       .catch(() => {
         setEmailPref(false);
         setDigestPref(false);
+        setMuted([]);
       });
   }, []);
+
+  async function toggleKind(kind: string) {
+    if (!muted) return;
+    const next = muted.includes(kind)
+      ? muted.filter((k) => k !== kind)
+      : [...muted, kind];
+    setMuted(next);
+    try {
+      await apiFetch('/notification-preferences', {
+        method: 'PATCH',
+        body: JSON.stringify({ mutedKinds: next }),
+      });
+    } catch {
+      setMuted(muted);
+      toast('Could not update preference', 'error');
+    }
+  }
 
   async function togglePref(
     key: 'emailEnabled' | 'digestEnabled',
@@ -201,6 +223,34 @@ export default function NotificationsPage() {
           title="Daily digest"
           subtitle="Once a day, email a summary of your unread notifications."
         />
+        <div className="flex flex-wrap items-center gap-2 rounded-[12px] border border-line bg-card px-4 py-3">
+          <span className="mr-1 text-[13px] font-semibold text-fg">
+            Notify me about
+          </span>
+          {[
+            { k: 'changed', label: 'Changes' },
+            { k: 'moved', label: 'Moves' },
+            { k: 'comment', label: 'Comments' },
+          ].map(({ k, label }) => {
+            const on = muted !== null && !muted.includes(k);
+            return (
+              <button
+                key={k}
+                onClick={() => toggleKind(k)}
+                disabled={muted === null}
+                className={cn(
+                  'rounded-full px-3 py-1 text-[12px] font-semibold transition disabled:opacity-60',
+                  on
+                    ? 'bg-acc text-white'
+                    : 'border border-capbd bg-capbg text-fg3 line-through',
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+          <span className="text-[12px] text-fg3">· mentions always notify</span>
+        </div>
       </div>
 
       <div className="mb-4 flex items-center gap-2">

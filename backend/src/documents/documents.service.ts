@@ -275,11 +275,20 @@ export class DocumentsService {
     actorId: string | null,
     exclude: Set<string> = new Set(),
   ): Promise<void> {
-    const filtered = recipients.filter((uid) => {
+    let filtered = recipients.filter((uid) => {
       const s = uid.toString();
       return s !== actorId && !exclude.has(s);
     });
     if (filtered.length === 0) return;
+    // Uszanuj wyciszenia per-typ (mentions zawsze docierają).
+    if (kind !== 'mention') {
+      const allowed = await this.preferences.notMutingKind(
+        filtered.map((u) => u.toString()),
+        kind,
+      );
+      filtered = filtered.filter((u) => allowed.has(u.toString()));
+      if (filtered.length === 0) return;
+    }
     await this.notificationModel.insertMany(
       filtered.map((userId) => ({
         workspaceId,

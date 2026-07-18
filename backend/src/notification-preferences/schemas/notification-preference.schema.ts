@@ -22,6 +22,10 @@ export class NotificationPreference {
   /** Dzienny zbiorczy e-mail (digest) z nieprzeczytanych powiadomień. */
   @Prop({ type: Boolean, default: false })
   digestEnabled: boolean;
+
+  /** Wyciszone typy zdarzeń (np. 'comment') — bez in-app i e-mail. */
+  @Prop({ type: [String], default: [] })
+  mutedKinds: string[];
 }
 
 export const NotificationPreferenceSchema = SchemaFactory.createForClass(

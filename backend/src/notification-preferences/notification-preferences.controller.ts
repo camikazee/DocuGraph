@@ -1,9 +1,18 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsOptional } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsOptional,
+} from 'class-validator';
+
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/interfaces/jwt-payload.interface';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { NotificationPreferencesService } from './notification-preferences.service';
+
+const MUTABLE_KINDS = ['changed', 'moved', 'comment'];
 
 class UpdatePreferencesDto {
   @IsOptional()
@@ -13,6 +22,12 @@ class UpdatePreferencesDto {
   @IsOptional()
   @IsBoolean()
   digestEnabled?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsIn(MUTABLE_KINDS, { each: true })
+  mutedKinds?: string[];
 }
 
 @Controller('notification-preferences')
@@ -33,6 +48,7 @@ export class NotificationPreferencesController {
     return this.prefs.set(user.userId, {
       emailEnabled: dto.emailEnabled,
       digestEnabled: dto.digestEnabled,
+      mutedKinds: dto.mutedKinds,
     });
   }
 }

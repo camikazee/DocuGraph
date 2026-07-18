@@ -61,7 +61,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **In-app notifications page** — `/notifications` with All/Unread filter, mark-all-read, click-through (marks read); bell dropdown links to it
 - [~] **More event types** — document changed, moved, and new comment now notify watchers (rename/delete/@mention still open)
 - [x] **Email notifications** — instant email to opted-in watchers, plus an opt-in **daily digest** of unread notifications (scheduled cron)
-- [~] **Notification preferences** — per-user email opt-in (`/notification-preferences`); per-workspace / per-document granularity still open
+- [x] **Notification preferences** — per-user email (instant + digest) opt-in and per-event-type mute (changes / moves / comments; mentions always notify) via `/notification-preferences`. Per-document control is covered by watch on/off; per-workspace granularity still open
 - [ ] **Comments & review workflow** — threads, resolve, request changes
 - [x] **@mentions** — mention workspace members in a comment via `@` autocomplete; mentioned users get a `mention` notification (+ email if opted in)
 
