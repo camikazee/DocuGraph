@@ -447,15 +447,17 @@ ${entries}
   }
 
   private toFull(doc: DocumentEntityDocument) {
+    // Documents are publicly addressed by filePath — never expose the Mongo _id.
+    // updatedBy is resolved to the author's name (populated), never a raw id.
+    const author = doc.updatedBy as unknown as { name?: string } | null;
     return {
-      id: doc._id.toString(),
       filePath: doc.filePath,
       title: doc.title,
       contentRaw: doc.contentRaw,
       contentHtml: doc.contentHtml,
       metadata: doc.metadata,
       links: doc.links,
-      updatedBy: doc.updatedBy ? doc.updatedBy.toString() : null,
+      updatedBy: author?.name ?? null,
     };
   }
 }

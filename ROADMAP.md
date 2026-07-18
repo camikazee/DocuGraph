@@ -45,7 +45,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ## 🎯 Milestone 1 — Production hardening
 *Make it safe and boring to run for real.*
 
-- [ ] **UUID public identifiers** — finish the planned migration; never expose Mongo `_id`
+- [x] **UUID public identifiers** — audit confirmed all public ids are UUID/filePath; closed the last raw `_id` leak in the full-document response (`updatedBy` now resolves to author name)
 - [ ] **Observability** — structured logging, request IDs, `/health` + `/ready` probes
 - [ ] **Error tracking** — wire Sentry (or equivalent) on backend + frontend
 - [ ] **Audit log** — who changed/published/deleted what, when

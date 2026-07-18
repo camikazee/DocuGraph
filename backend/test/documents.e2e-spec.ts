@@ -144,6 +144,12 @@ describe('Documents pipeline (e2e)', () => {
       .expect(200);
     expect(res.body.title).toBe('Auth Guide');
     expect(res.body.contentHtml).toContain('<h1>Auth</h1>');
+    // Nie wolno wystawiać wewnętrznego Mongo _id — dokument adresujemy filePath.
+    expect(res.body.id).toBeUndefined();
+    expect(res.body._id).toBeUndefined();
+    // updatedBy to nazwa autora, nie surowy ObjectId.
+    expect(res.body.updatedBy).toBe('Owner');
+    expect(res.body.updatedBy).not.toMatch(/^[a-f0-9]{24}$/);
   });
 
   it('list zwraca dokumenty workspace', async () => {

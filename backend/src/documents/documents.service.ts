@@ -1022,6 +1022,7 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
   ): Promise<DocumentEntityDocument> {
     const doc = await this.documentModel
       .findOne({ workspaceId, filePath })
+      .populate('updatedBy', 'name')
       .exec();
     if (!doc) {
       throw new NotFoundException('Document not found');
