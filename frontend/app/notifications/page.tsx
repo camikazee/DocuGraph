@@ -20,6 +20,31 @@ export default function NotificationsPage() {
 
   const [items, setItems] = useState<AppNotification[] | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
+  const [emailPref, setEmailPref] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ emailEnabled: boolean }>('/notification-preferences')
+      .then((p) => setEmailPref(p.emailEnabled))
+      .catch(() => setEmailPref(false));
+  }, []);
+
+  async function toggleEmail() {
+    const next = !emailPref;
+    setEmailPref(next);
+    try {
+      await apiFetch('/notification-preferences', {
+        method: 'PATCH',
+        body: JSON.stringify({ emailEnabled: next }),
+      });
+      toast(
+        next ? 'Email notifications on' : 'Email notifications off',
+        'success',
+      );
+    } catch {
+      setEmailPref(!next);
+      toast('Could not update preference', 'error');
+    }
+  }
 
   const load = useCallback(async () => {
     if (!ws) return;
@@ -96,6 +121,34 @@ export default function NotificationsPage() {
           Mark all read
         </button>
       </div>
+
+      <button
+        onClick={toggleEmail}
+        disabled={emailPref === null}
+        className="mb-4 flex w-full items-center gap-3 rounded-[12px] border border-line bg-card px-4 py-3 text-left transition hover:border-acc disabled:opacity-60"
+      >
+        <span
+          className={cn(
+            'relative h-5 w-9 flex-none rounded-full transition',
+            emailPref ? 'bg-acc' : 'bg-inputbd',
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.5 h-4 w-4 rounded-full bg-white transition',
+              emailPref ? 'left-[18px]' : 'left-0.5',
+            )}
+          />
+        </span>
+        <span className="flex-1">
+          <span className="block text-[13px] font-semibold text-fg">
+            Email me about watched documents
+          </span>
+          <span className="block text-[12px] text-fg3">
+            Send an email when a document you watch changes, moves, or gets a comment.
+          </span>
+        </span>
+      </button>
 
       <div className="mb-4 flex items-center gap-2">
         {tabs.map((t) => (

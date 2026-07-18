@@ -21,6 +21,10 @@ import {
   NotificationDocument,
 } from './schemas/notification.schema';
 import { UserDocument } from '../users/schemas/user.schema';
+import { ConfigService } from '@nestjs/config';
+import { MailerService } from '../common/mailer/mailer.service';
+import { UsersService } from '../users/users.service';
+import { NotificationPreferencesService } from '../notification-preferences/notification-preferences.service';
 import { lineDiff } from './diff.util';
 
 @Injectable()
@@ -40,6 +44,10 @@ export class DocumentsService {
     private readonly notificationModel: Model<NotificationDocument>,
     private readonly storage: WorkspaceStorageService,
     private readonly parser: MarkdownParserService,
+    private readonly mailer: MailerService,
+    private readonly usersService: UsersService,
+    private readonly preferences: NotificationPreferencesService,
+    private readonly config: ConfigService,
   ) {}
 
   // ---- Telemetria: odczyty + obserwacje ----
@@ -243,6 +251,47 @@ export class DocumentsService {
         actorId: actorId ?? null,
       })),
     );
+    await this.emailWatchers(recipients, filePath, title, kind, actorId);
+  }
+
+  /** Wysyła e-mail do obserwujących, którzy włączyli powiadomienia mailowe. */
+  private async emailWatchers(
+    recipients: Types.ObjectId[],
+    filePath: string,
+    title: string,
+    kind: string,
+    actorId: string | null,
+  ): Promise<void> {
+    const ids = recipients.map((r) => r.toString());
+    const optedIn = await this.preferences.emailEnabledAmong(ids);
+    if (optedIn.size === 0) return;
+
+    const verb =
+      kind === 'moved'
+        ? 'moved'
+        : kind === 'comment'
+          ? 'commented on'
+          : 'updated';
+    const actorName = actorId
+      ? ((await this.usersService.findById(actorId))?.name ?? 'Someone')
+      : 'CI';
+    const appUrl = (
+      this.config.get<string>('appUrl') ?? 'http://localhost:3002'
+    ).replace(/\/+$/, '');
+    const link = `${appUrl}/documents/view?path=${encodeURIComponent(filePath)}`;
+
+    for (const id of ids) {
+      if (!optedIn.has(id)) continue;
+      const user = await this.usersService.findById(id);
+      if (!user?.email) continue;
+      await this.mailer.sendWatchNotification(user.email, {
+        actorName,
+        verb,
+        filePath,
+        title,
+        link,
+      });
+    }
   }
 
   /** Powiadomienia odbiorcy (najnowsze pierwsze); opcjonalnie tylko nieprzeczytane. */
@@ -1069,20 +1118,8 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
       }
     }
 
-    const recipients = watchers
-      .map((w) => w.userId)
-      .filter((uid) => !actorId || uid.toString() !== actorId);
-    if (recipients.length === 0) return;
-    await this.notificationModel.insertMany(
-      recipients.map((userId) => ({
-        workspaceId,
-        userId,
-        filePath: to,
-        title,
-        kind: 'moved',
-        actorId: actorId ?? null,
-      })),
-    );
+    // Obserwacje już wskazują `to` — powiadom (in-app + e-mail) jednym torem.
+    await this.notifyWatchers(workspaceId, to, title, actorId, 'moved');
   }
 
   async getByPath(

@@ -21,6 +21,8 @@ import { MarkdownParserService } from './markdown-parser.service';
 import { GitPublishService } from './git-publish.service';
 import { AutoPublishService } from './auto-publish.service';
 import { AuditModule } from '../audit/audit.module';
+import { MailerModule } from '../common/mailer/mailer.module';
+import { NotificationPreferencesModule } from '../notification-preferences/notification-preferences.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { AuditModule } from '../audit/audit.module';
     ApiKeysModule, // ApiKeysService
     UsersModule, // UsersService (autor commita w „Publish to Git")
     AuditModule, // AuditService (dziennik zdarzeń doc-level)
+    MailerModule, // e-mail o zmianach obserwowanych dokumentów
+    NotificationPreferencesModule, // opt-in na e-maile
   ],
   controllers: [DocumentsController, WebhooksController],
   providers: [

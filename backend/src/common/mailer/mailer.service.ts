@@ -61,6 +61,48 @@ export class MailerService {
     await this.deliver({ to, subject, token, link }, text, html);
   }
 
+  /** E-mail o zmianie obserwowanego dokumentu (kind → czasownik w treści). */
+  async sendWatchNotification(
+    to: string,
+    opts: {
+      actorName: string;
+      verb: string;
+      filePath: string;
+      title: string;
+      link: string;
+    },
+  ): Promise<void> {
+    const { actorName, verb, filePath, title, link } = opts;
+    const subject = `${actorName} ${verb} "${title}"`;
+    const text =
+      `${actorName} ${verb} a document you're watching.\n\n` +
+      `${title} (${filePath})\n\n` +
+      `Open it: ${link}\n`;
+    const html = this.watchHtml({ actorName, verb, filePath, title, link });
+    await this.deliver({ to, subject, link }, text, html);
+  }
+
+  private watchHtml(opts: {
+    actorName: string;
+    verb: string;
+    filePath: string;
+    title: string;
+    link: string;
+  }): string {
+    const { actorName, verb, filePath, title, link } = opts;
+    return `<!doctype html><html><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0b0f19;padding:32px;color:#e6e8ee">
+  <div style="max-width:480px;margin:0 auto;background:#11151f;border:1px solid #222838;border-radius:14px;padding:28px">
+    <p style="font-size:13px;color:#9aa3b2;margin:0 0 6px">${actorName} ${verb} a document you're watching</p>
+    <h1 style="font-size:18px;margin:0 0 4px">${title}</h1>
+    <p style="font-family:ui-monospace,monospace;font-size:12px;color:#6b7280;margin:0 0 20px">${filePath}</p>
+    <a href="${link}" style="display:inline-block;background:#7c5cff;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px">Open document</a>
+    <p style="font-size:12px;color:#6b7280;margin:20px 0 0">
+      You're receiving this because you watch this document. Turn off email notifications in DocuGraph → Notifications.
+    </p>
+  </div>
+</body></html>`;
+  }
+
   private async deliver(
     mail: SentMail,
     text: string,
