@@ -118,20 +118,44 @@ export default function NotificationsPage() {
     }
   }
 
+  const PAGE = 30;
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const load = useCallback(async () => {
     if (!ws) return;
     setItems(null);
     try {
-      const q = filter === 'unread' ? '?unread=1' : '';
+      const unread = filter === 'unread' ? '&unread=1' : '';
       const list = await apiFetch<AppNotification[]>(
-        `/workspaces/${ws}/documents/notifications${q}`,
+        `/workspaces/${ws}/documents/notifications?limit=${PAGE}${unread}`,
       );
       setItems(list);
+      setHasMore(list.length === PAGE);
     } catch {
       setItems([]);
+      setHasMore(false);
       toast('Could not load notifications', 'error');
     }
   }, [ws, filter, toast]);
+
+  async function loadMore() {
+    if (!ws || !items?.length || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const unread = filter === 'unread' ? '&unread=1' : '';
+      const before = encodeURIComponent(items[items.length - 1].createdAt);
+      const older = await apiFetch<AppNotification[]>(
+        `/workspaces/${ws}/documents/notifications?limit=${PAGE}&before=${before}${unread}`,
+      );
+      setItems((prev) => [...(prev ?? []), ...older]);
+      setHasMore(older.length === PAGE);
+    } catch {
+      toast('Could not load more', 'error');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -309,6 +333,18 @@ export default function NotificationsPage() {
           ))}
         </div>
       </Loader>
+
+      {hasMore && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="rounded-lg border border-capbd bg-capbg px-4 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc disabled:opacity-60"
+          >
+            {loadingMore ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
+      )}
     </AppShell>
   );
 }

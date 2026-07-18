@@ -44,19 +44,41 @@ export default function AuditPage() {
 
   const [items, setItems] = useState<AuditEntry[] | null>(null);
   const [forbidden, setForbidden] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE = 50;
 
   const load = useCallback(async () => {
     if (!ws) return;
     setItems(null);
     setForbidden(false);
     try {
-      const list = await apiFetch<AuditEntry[]>(`/workspaces/${ws}/audit`);
+      const list = await apiFetch<AuditEntry[]>(
+        `/workspaces/${ws}/audit?limit=${PAGE}`,
+      );
       setItems(list);
+      setHasMore(list.length === PAGE);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) setForbidden(true);
       setItems([]);
+      setHasMore(false);
     }
   }, [ws]);
+
+  async function loadMore() {
+    if (!ws || !items?.length || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const before = encodeURIComponent(items[items.length - 1].createdAt);
+      const older = await apiFetch<AuditEntry[]>(
+        `/workspaces/${ws}/audit?limit=${PAGE}&before=${before}`,
+      );
+      setItems((prev) => [...(prev ?? []), ...older]);
+      setHasMore(older.length === PAGE);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -121,6 +143,18 @@ export default function AuditPage() {
             ))}
           </div>
         </Loader>
+      )}
+
+      {!forbidden && hasMore && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="rounded-lg border border-capbd bg-capbg px-4 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc disabled:opacity-60"
+          >
+            {loadingMore ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
       )}
     </AppShell>
   );

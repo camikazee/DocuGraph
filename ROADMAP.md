@@ -77,8 +77,8 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ## 🎯 Milestone 4 — Search & scale
 *Stay fast as workspaces grow.*
 
-- [ ] **Full-text search** — Mongo text index (or Atlas Search) instead of in-memory filter
-- [ ] **Pagination** everywhere (documents, media, revisions, notifications)
+- [x] **Full-text search** — Mongo `$text` index (title + content, weighted) with scored results, snippets and facets; `/search` page + command palette
+- [~] **Pagination** — cursor pagination (`limit` + `before`) with "Load more" on the append-only logs (notifications, audit); documents / media / revisions still open
 - [ ] **Caching** for graph / health computations on large workspaces
 - [ ] **Graph performance** — virtualize / cluster large graphs
 - [ ] **Bulk operations** — fix orphans, archive stale, bulk tag/move

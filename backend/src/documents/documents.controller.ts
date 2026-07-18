@@ -134,6 +134,8 @@ export class DocumentsController {
     @Param('id') workspaceId: string,
     @Req() req: RequestWithWorkspace,
     @Query('unread') unread?: string,
+    @Query('before') before?: string,
+    @Query('limit') limit?: string,
   ) {
     if (req.authType !== 'jwt') return [];
     return this.documentsService.listNotifications(
@@ -141,6 +143,8 @@ export class DocumentsController {
       req.user.userId,
       {
         unreadOnly: unread === '1' || unread === 'true',
+        before,
+        limit: limit ? parseInt(limit, 10) : undefined,
       },
     );
   }

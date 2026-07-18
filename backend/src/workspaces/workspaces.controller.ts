@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -55,8 +56,12 @@ export class WorkspacesController {
   @Get(':id/audit')
   @UseGuards(WorkspaceGuard, RolesGuard)
   @Roles(Role.Owner)
-  audit_(@Param('id') id: string) {
-    return this.audit.list(id);
+  audit_(
+    @Param('id') id: string,
+    @Query('before') before?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.audit.list(id, limit ? parseInt(limit, 10) : 50, before);
   }
 
   @Patch(':id/members/:userId')

@@ -420,10 +420,15 @@ export class DocumentsService {
   async listNotifications(
     workspaceId: string,
     userId: string,
-    opts: { unreadOnly?: boolean; limit?: number } = {},
+    opts: { unreadOnly?: boolean; limit?: number; before?: string } = {},
   ) {
     const filter: Record<string, unknown> = { workspaceId, userId };
     if (opts.unreadOnly) filter.readAt = null;
+    // Kursor: pobierz starsze niż `before` (paginacja „załaduj więcej").
+    if (opts.before) {
+      const cursor = new Date(opts.before);
+      if (!isNaN(cursor.getTime())) filter.createdAt = { $lt: cursor };
+    }
     const items = await this.notificationModel
       .find(filter)
       .sort({ createdAt: -1 })

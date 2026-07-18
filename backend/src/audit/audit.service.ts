@@ -42,10 +42,15 @@ export class AuditService {
     }
   }
 
-  /** Ostatnie wpisy audytu w workspace (najnowsze pierwsze). */
-  async list(workspaceId: string, limit = 50) {
+  /** Ostatnie wpisy audytu (najnowsze pierwsze); `before` = kursor paginacji. */
+  async list(workspaceId: string, limit = 50, before?: string) {
+    const filter: Record<string, unknown> = { workspaceId };
+    if (before) {
+      const cursor = new Date(before);
+      if (!isNaN(cursor.getTime())) filter.createdAt = { $lt: cursor };
+    }
     const items = await this.auditModel
-      .find({ workspaceId })
+      .find(filter)
       .sort({ createdAt: -1 })
       .limit(Math.min(limit, 200))
       .populate<{ actorId: UserDocument | null }>('actorId', 'name')
