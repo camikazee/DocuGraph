@@ -103,6 +103,32 @@ export class MailerService {
 </body></html>`;
   }
 
+  /** Dzienny digest nieprzeczytanych powiadomień. */
+  async sendDigest(
+    to: string,
+    items: { title: string; filePath: string; verb: string }[],
+    link: string,
+  ): Promise<void> {
+    const subject = `Your DocuGraph digest — ${items.length} update${items.length === 1 ? '' : 's'}`;
+    const lines = items.map((i) => `• ${i.title} — ${i.verb} (${i.filePath})`);
+    const text = `You have ${items.length} unread update(s):\n\n${lines.join('\n')}\n\nOpen DocuGraph: ${link}\n`;
+    const rows = items
+      .map(
+        (i) =>
+          `<li style="margin:0 0 10px"><strong style="color:#e6e8ee">${i.title}</strong><br><span style="font-size:12px;color:#9aa3b2">${i.verb} · <span style="font-family:ui-monospace,monospace">${i.filePath}</span></span></li>`,
+      )
+      .join('');
+    const html = `<!doctype html><html><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0b0f19;padding:32px;color:#e6e8ee">
+  <div style="max-width:520px;margin:0 auto;background:#11151f;border:1px solid #222838;border-radius:14px;padding:28px">
+    <h1 style="font-size:18px;margin:0 0 16px">${items.length} unread update${items.length === 1 ? '' : 's'}</h1>
+    <ul style="list-style:none;padding:0;margin:0 0 20px">${rows}</ul>
+    <a href="${link}" style="display:inline-block;background:#7c5cff;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px">Open DocuGraph</a>
+    <p style="font-size:12px;color:#6b7280;margin:20px 0 0">Turn off the daily digest in DocuGraph → Notifications.</p>
+  </div>
+</body></html>`;
+    await this.deliver({ to, subject, link }, text, html);
+  }
+
   private async deliver(
     mail: SentMail,
     text: string,

@@ -9,6 +9,10 @@ class UpdatePreferencesDto {
   @IsOptional()
   @IsBoolean()
   emailEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  digestEnabled?: boolean;
 }
 
 @Controller('notification-preferences')
@@ -26,6 +30,9 @@ export class NotificationPreferencesController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdatePreferencesDto,
   ) {
-    return this.prefs.set(user.userId, dto.emailEnabled ?? false);
+    return this.prefs.set(user.userId, {
+      emailEnabled: dto.emailEnabled,
+      digestEnabled: dto.digestEnabled,
+    });
   }
 }

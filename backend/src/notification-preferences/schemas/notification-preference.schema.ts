@@ -15,9 +15,13 @@ export class NotificationPreference {
   })
   userId: Types.ObjectId;
 
-  /** Czy wysyłać e-mail przy zmianie obserwowanego dokumentu (domyślnie nie). */
+  /** E-mail natychmiastowy przy każdej zmianie obserwowanego dokumentu. */
   @Prop({ type: Boolean, default: false })
   emailEnabled: boolean;
+
+  /** Dzienny zbiorczy e-mail (digest) z nieprzeczytanych powiadomień. */
+  @Prop({ type: Boolean, default: false })
+  digestEnabled: boolean;
 }
 
 export const NotificationPreferenceSchema = SchemaFactory.createForClass(

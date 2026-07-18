@@ -6,6 +6,11 @@ import {
   NotificationPreferenceDocument,
 } from './schemas/notification-preference.schema';
 
+export interface Preferences {
+  emailEnabled: boolean;
+  digestEnabled: boolean;
+}
+
 @Injectable()
 export class NotificationPreferencesService {
   constructor(
@@ -14,25 +19,26 @@ export class NotificationPreferencesService {
   ) {}
 
   /** Preferencje użytkownika (z domyślnymi, gdy brak zapisu). */
-  async get(userId: string): Promise<{ emailEnabled: boolean }> {
+  async get(userId: string): Promise<Preferences> {
     const pref = await this.prefModel.findOne({ userId }).lean().exec();
-    return { emailEnabled: pref?.emailEnabled ?? false };
+    return {
+      emailEnabled: pref?.emailEnabled ?? false,
+      digestEnabled: pref?.digestEnabled ?? false,
+    };
   }
 
-  /** Ustawia preferencje (upsert). */
-  async set(
-    userId: string,
-    emailEnabled: boolean,
-  ): Promise<{ emailEnabled: boolean }> {
-    await this.prefModel.updateOne(
-      { userId },
-      { $set: { emailEnabled } },
-      { upsert: true },
-    );
-    return { emailEnabled };
+  /** Aktualizuje wskazane pola preferencji (upsert, merge). */
+  async set(userId: string, patch: Partial<Preferences>): Promise<Preferences> {
+    const $set: Partial<Preferences> = {};
+    if (patch.emailEnabled !== undefined)
+      $set.emailEnabled = patch.emailEnabled;
+    if (patch.digestEnabled !== undefined)
+      $set.digestEnabled = patch.digestEnabled;
+    await this.prefModel.updateOne({ userId }, { $set }, { upsert: true });
+    return this.get(userId);
   }
 
-  /** Podzbiór userIds, którzy mają włączony e-mail (do rozsyłki). */
+  /** Podzbiór userIds z włączonym e-mailem natychmiastowym. */
   async emailEnabledAmong(userIds: string[]): Promise<Set<string>> {
     if (userIds.length === 0) return new Set();
     const prefs = await this.prefModel
@@ -41,5 +47,15 @@ export class NotificationPreferencesService {
       .lean()
       .exec();
     return new Set(prefs.map((p) => p.userId.toString()));
+  }
+
+  /** Wszyscy userId z włączonym dziennym digestem. */
+  async digestRecipients(): Promise<string[]> {
+    const prefs = await this.prefModel
+      .find({ digestEnabled: true })
+      .select('userId')
+      .lean()
+      .exec();
+    return prefs.map((p) => p.userId.toString());
   }
 }

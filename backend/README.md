@@ -91,7 +91,7 @@ src/
 | GET | `/auth/github/callback` | powrót OAuth → JWT |
 | GET | `/auth/me` | profil + workspace'y (JWT) |
 | GET | `/notification-preferences` | preferencje powiadomień usera (JWT) |
-| PATCH | `/notification-preferences` | ustaw `{ emailEnabled }` (JWT) |
+| PATCH | `/notification-preferences` | ustaw `{ emailEnabled, digestEnabled }` (JWT) |
 
 ### Workspaces / zespół (JWT, scoped do `:id`)
 | Metoda | Ścieżka | Rola |

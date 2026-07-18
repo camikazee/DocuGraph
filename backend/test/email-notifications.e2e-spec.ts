@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 import { MailerService } from '../src/common/mailer/mailer.service';
+import { DocumentsService } from '../src/documents/documents.service';
 
 describe('Email notifications for watched documents (e2e)', () => {
   let app: INestApplication;
@@ -134,5 +135,25 @@ describe('Email notifications for watched documents (e2e)', () => {
     mailer.lastSent = null;
     await editDoc('# Email\n\nv4 — no email now');
     expect(mailer.lastSent).toBeNull();
+  });
+
+  it('sends a daily digest to users who enabled it', async () => {
+    const documents = app.get<DocumentsService>(DocumentsService);
+    // digest on, instant off — so only the digest path can send mail
+    await request(http())
+      .patch('/api/v1/notification-preferences')
+      .set(bearer(memberToken))
+      .send({ digestEnabled: true, emailEnabled: false })
+      .expect(200);
+    // make sure the member has at least one unread notification
+    await editDoc('# Email\n\nv5 — accumulates for the digest');
+
+    mailer.lastSent = null;
+    const sent = await documents.sendDailyDigests();
+    expect(sent).toBeGreaterThanOrEqual(1);
+
+    const digest = mailer.lastSent as { to: string; subject: string } | null;
+    expect(digest?.to).toBe('member@mail.test');
+    expect(digest?.subject.toLowerCase()).toContain('digest');
   });
 });

@@ -20,6 +20,7 @@ import { WorkspaceStorageService } from './workspace-storage.service';
 import { MarkdownParserService } from './markdown-parser.service';
 import { GitPublishService } from './git-publish.service';
 import { AutoPublishService } from './auto-publish.service';
+import { DigestCron } from './digest.cron';
 import { AuditModule } from '../audit/audit.module';
 import { MailerModule } from '../common/mailer/mailer.module';
 import { NotificationPreferencesModule } from '../notification-preferences/notification-preferences.module';
@@ -49,6 +50,7 @@ import { NotificationPreferencesModule } from '../notification-preferences/notif
     MarkdownParserService,
     GitPublishService,
     AutoPublishService,
+    DigestCron,
   ],
 })
 export class DocumentsModule {}

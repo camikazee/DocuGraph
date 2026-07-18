@@ -12,6 +12,44 @@ import { AppNotification, timeAgo, verbFor } from '@/lib/notifications';
 
 type Filter = 'all' | 'unread';
 
+function PrefToggle({
+  on,
+  onClick,
+  title,
+  subtitle,
+}: {
+  on: boolean | null;
+  onClick: () => void;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={on === null}
+      className="flex w-full items-center gap-3 rounded-[12px] border border-line bg-card px-4 py-3 text-left transition hover:border-acc disabled:opacity-60"
+    >
+      <span
+        className={cn(
+          'relative h-5 w-9 flex-none rounded-full transition',
+          on ? 'bg-acc' : 'bg-inputbd',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 h-4 w-4 rounded-full bg-white transition',
+            on ? 'left-[18px]' : 'left-0.5',
+          )}
+        />
+      </span>
+      <span className="flex-1">
+        <span className="block text-[13px] font-semibold text-fg">{title}</span>
+        <span className="block text-[12px] text-fg3">{subtitle}</span>
+      </span>
+    </button>
+  );
+}
+
 export default function NotificationsPage() {
   const { profile, error } = useProfile();
   const ws = profile?.workspaces[0]?.id;
@@ -21,27 +59,39 @@ export default function NotificationsPage() {
   const [items, setItems] = useState<AppNotification[] | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [emailPref, setEmailPref] = useState<boolean | null>(null);
+  const [digestPref, setDigestPref] = useState<boolean | null>(null);
 
   useEffect(() => {
-    apiFetch<{ emailEnabled: boolean }>('/notification-preferences')
-      .then((p) => setEmailPref(p.emailEnabled))
-      .catch(() => setEmailPref(false));
+    apiFetch<{ emailEnabled: boolean; digestEnabled: boolean }>(
+      '/notification-preferences',
+    )
+      .then((p) => {
+        setEmailPref(p.emailEnabled);
+        setDigestPref(p.digestEnabled);
+      })
+      .catch(() => {
+        setEmailPref(false);
+        setDigestPref(false);
+      });
   }, []);
 
-  async function toggleEmail() {
-    const next = !emailPref;
-    setEmailPref(next);
+  async function togglePref(
+    key: 'emailEnabled' | 'digestEnabled',
+    current: boolean | null,
+    setter: (v: boolean) => void,
+    onLabel: string,
+    offLabel: string,
+  ) {
+    const next = !current;
+    setter(next);
     try {
       await apiFetch('/notification-preferences', {
         method: 'PATCH',
-        body: JSON.stringify({ emailEnabled: next }),
+        body: JSON.stringify({ [key]: next }),
       });
-      toast(
-        next ? 'Email notifications on' : 'Email notifications off',
-        'success',
-      );
+      toast(next ? onLabel : offLabel, 'success');
     } catch {
-      setEmailPref(!next);
+      setter(!next);
       toast('Could not update preference', 'error');
     }
   }
@@ -122,33 +172,36 @@ export default function NotificationsPage() {
         </button>
       </div>
 
-      <button
-        onClick={toggleEmail}
-        disabled={emailPref === null}
-        className="mb-4 flex w-full items-center gap-3 rounded-[12px] border border-line bg-card px-4 py-3 text-left transition hover:border-acc disabled:opacity-60"
-      >
-        <span
-          className={cn(
-            'relative h-5 w-9 flex-none rounded-full transition',
-            emailPref ? 'bg-acc' : 'bg-inputbd',
-          )}
-        >
-          <span
-            className={cn(
-              'absolute top-0.5 h-4 w-4 rounded-full bg-white transition',
-              emailPref ? 'left-[18px]' : 'left-0.5',
-            )}
-          />
-        </span>
-        <span className="flex-1">
-          <span className="block text-[13px] font-semibold text-fg">
-            Email me about watched documents
-          </span>
-          <span className="block text-[12px] text-fg3">
-            Send an email when a document you watch changes, moves, or gets a comment.
-          </span>
-        </span>
-      </button>
+      <div className="mb-4 grid gap-2">
+        <PrefToggle
+          on={emailPref}
+          onClick={() =>
+            togglePref(
+              'emailEnabled',
+              emailPref,
+              setEmailPref,
+              'Instant email on',
+              'Instant email off',
+            )
+          }
+          title="Email me instantly"
+          subtitle="Send an email as soon as a document you watch changes, moves, or gets a comment."
+        />
+        <PrefToggle
+          on={digestPref}
+          onClick={() =>
+            togglePref(
+              'digestEnabled',
+              digestPref,
+              setDigestPref,
+              'Daily digest on',
+              'Daily digest off',
+            )
+          }
+          title="Daily digest"
+          subtitle="Once a day, email a summary of your unread notifications."
+        />
+      </div>
 
       <div className="mb-4 flex items-center gap-2">
         {tabs.map((t) => (

@@ -305,12 +305,7 @@ export class DocumentsService {
     const optedIn = await this.preferences.emailEnabledAmong(ids);
     if (optedIn.size === 0) return;
 
-    const verb =
-      kind === 'moved'
-        ? 'moved'
-        : kind === 'comment'
-          ? 'commented on'
-          : 'updated';
+    const verb = this.verbForKind(kind);
     const actorName = actorId
       ? ((await this.usersService.findById(actorId))?.name ?? 'Someone')
       : 'CI';
@@ -331,6 +326,48 @@ export class DocumentsService {
         link,
       });
     }
+  }
+
+  private verbForKind(kind: string): string {
+    if (kind === 'moved') return 'moved';
+    if (kind === 'comment') return 'commented on';
+    if (kind === 'mention') return 'mentioned you in';
+    return 'updated';
+  }
+
+  /**
+   * Wysyła dzienny digest nieprzeczytanych powiadomień do userów, którzy go
+   * włączyli. Zwraca liczbę wysłanych maili. Wołane z crona (i z testów).
+   */
+  async sendDailyDigests(): Promise<number> {
+    const recipients = await this.preferences.digestRecipients();
+    if (recipients.length === 0) return 0;
+    const appUrl = (
+      this.config.get<string>('appUrl') ?? 'http://localhost:3002'
+    ).replace(/\/+$/, '');
+    let sent = 0;
+    for (const userId of recipients) {
+      const unread = await this.notificationModel
+        .find({ userId, readAt: null })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean()
+        .exec();
+      if (unread.length === 0) continue;
+      const user = await this.usersService.findById(userId);
+      if (!user?.email) continue;
+      await this.mailer.sendDigest(
+        user.email,
+        unread.map((n) => ({
+          title: n.title,
+          filePath: n.filePath,
+          verb: this.verbForKind(n.kind),
+        })),
+        `${appUrl}/notifications`,
+      );
+      sent++;
+    }
+    return sent;
   }
 
   /** Powiadomienia odbiorcy (najnowsze pierwsze); opcjonalnie tylko nieprzeczytane. */
