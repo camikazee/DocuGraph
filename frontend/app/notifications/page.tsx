@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
 import { apiFetch } from '@/lib/api';
 import { useProfile } from '@/lib/useProfile';
-import { AppNotification, timeAgo } from '@/lib/notifications';
+import { AppNotification, timeAgo, verbFor } from '@/lib/notifications';
 
 type Filter = 'all' | 'unread';
 
@@ -143,7 +143,7 @@ export default function NotificationsPage() {
                   {n.title}
                 </span>
                 <span className="block truncate text-[13px] text-fg3">
-                  {n.actor} updated <span className="font-mono">{n.filePath}</span>
+                  {n.actor} {verbFor(n.kind)} <span className="font-mono">{n.filePath}</span>
                 </span>
               </span>
               <span className="flex-none whitespace-nowrap text-[12px] text-muted">

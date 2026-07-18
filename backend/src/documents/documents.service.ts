@@ -1012,7 +1012,63 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
       );
     }
 
+    // Obserwacje podążają za plikiem, a obserwujący dostają powiadomienie.
+    await this.migrateWatchesAndNotifyMove(
+      workspaceId,
+      from,
+      to,
+      src.title,
+      updatedBy,
+    );
+
     return { moved: true, from, to, refactoredLinks };
+  }
+
+  /** Przenosi obserwacje `from`→`to` i powiadamia obserwujących (poza autorem). */
+  private async migrateWatchesAndNotifyMove(
+    workspaceId: string,
+    from: string,
+    to: string,
+    title: string,
+    actorId: string | null,
+  ): Promise<void> {
+    const watchers = await this.watchModel
+      .find({ workspaceId, filePath: from })
+      .select('userId')
+      .lean()
+      .exec();
+    if (watchers.length === 0) return;
+
+    for (const w of watchers) {
+      try {
+        await this.watchModel.updateOne(
+          { workspaceId, userId: w.userId, filePath: from },
+          { $set: { filePath: to } },
+        );
+      } catch {
+        // Użytkownik już obserwuje `to` (kolizja unikalnego indeksu) — usuń stary.
+        await this.watchModel.deleteOne({
+          workspaceId,
+          userId: w.userId,
+          filePath: from,
+        });
+      }
+    }
+
+    const recipients = watchers
+      .map((w) => w.userId)
+      .filter((uid) => !actorId || uid.toString() !== actorId);
+    if (recipients.length === 0) return;
+    await this.notificationModel.insertMany(
+      recipients.map((userId) => ({
+        workspaceId,
+        userId,
+        filePath: to,
+        title,
+        kind: 'moved',
+        actorId: actorId ?? null,
+      })),
+    );
   }
 
   async getByPath(

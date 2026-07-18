@@ -8,6 +8,11 @@ export interface AppNotification {
   createdAt: string;
 }
 
+/** Czasownik zdarzenia wg rodzaju (np. „moved" vs domyślne „updated"). */
+export function verbFor(kind: string): string {
+  return kind === 'moved' ? 'moved' : 'updated';
+}
+
 /** Zwięzły „ile temu" (just now / Nm / Nh / Nd) dla znacznika czasu ISO. */
 export function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);

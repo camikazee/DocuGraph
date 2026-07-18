@@ -20,10 +20,16 @@ describe('HealthController', () => {
     controller = module.get<HealthController>(HealthController);
   });
 
-  it('zwraca status ok i db up gdy połączenie aktywne', () => {
-    const result = controller.check();
+  it('liveness zwraca status ok i uptime', () => {
+    const result = controller.liveness();
     expect(result.status).toBe('ok');
-    expect(result.db).toBe('up');
+    expect(typeof result.uptime).toBe('number');
     expect(result.timestamp).toBeDefined();
+  });
+
+  it('readiness zwraca ready i db up gdy połączenie aktywne', () => {
+    const result = controller.readiness();
+    expect(result.status).toBe('ready');
+    expect(result.db).toBe('up');
   });
 });

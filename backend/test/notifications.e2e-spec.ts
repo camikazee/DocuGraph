@@ -178,4 +178,33 @@ describe('Notifications for watched documents (e2e)', () => {
       .expect(200);
     expect(unreadOnly.body).toHaveLength(0);
   });
+
+  it('notifies watchers when a watched document is moved and migrates the watch', async () => {
+    const NEW = 'guide/installation.md';
+    await request(http())
+      .post(`/api/v1/workspaces/${ws}/documents/move`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ from: DOC, to: NEW })
+      .expect(201);
+
+    // the watcher (member) is notified with kind 'moved' pointing at the new path
+    const list = await request(http())
+      .get(`/api/v1/workspaces/${ws}/documents/notifications`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .expect(200);
+    const moved = list.body.find((n: { kind: string }) => n.kind === 'moved');
+    expect(moved).toMatchObject({
+      kind: 'moved',
+      filePath: NEW,
+      actor: 'Owner',
+    });
+
+    // the watch itself follows the file
+    const watching = await request(http())
+      .get(`/api/v1/workspaces/${ws}/documents/watching`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .expect(200);
+    expect(watching.body).toContain(NEW);
+    expect(watching.body).not.toContain(DOC);
+  });
 });

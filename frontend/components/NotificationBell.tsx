@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useProfile } from '@/lib/useProfile';
-import { AppNotification, timeAgo } from '@/lib/notifications';
+import { AppNotification, timeAgo, verbFor } from '@/lib/notifications';
 
 export function NotificationBell() {
   const { profile } = useProfile();
@@ -173,7 +173,7 @@ export function NotificationBell() {
                       {n.title}
                     </span>
                     <span className="block truncate text-[12px] text-fg3">
-                      {n.actor} updated{' '}
+                      {n.actor} {verbFor(n.kind)}{' '}
                       <span className="font-mono">{n.filePath}</span>
                     </span>
                     <span className="text-[11px] text-muted">
