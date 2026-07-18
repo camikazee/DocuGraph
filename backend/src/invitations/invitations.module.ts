@@ -5,6 +5,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { Invitation, InvitationSchema } from './schemas/invitation.schema';
 import { InvitationsService } from './invitations.service';
 import { InvitationsController } from './invitations.controller';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { InvitationsController } from './invitations.controller';
     ]),
     WorkspacesModule,
     UsersModule,
+    AuditModule,
   ],
   controllers: [InvitationsController],
   providers: [InvitationsService],

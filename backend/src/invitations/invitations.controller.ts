@@ -18,26 +18,38 @@ import { AuthenticatedUser } from '../common/interfaces/jwt-payload.interface';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { AcceptInvitationDto } from './dto/accept-invitation.dto';
 import { InvitationsService } from './invitations.service';
+import { AuditService } from '../audit/audit.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class InvitationsController {
-  constructor(private readonly invitationsService: InvitationsService) {}
+  constructor(
+    private readonly invitationsService: InvitationsService,
+    private readonly audit: AuditService,
+  ) {}
 
   @Post('workspaces/:id/invitations')
   @UseGuards(WorkspaceGuard, RolesGuard)
   @Roles(Role.Owner, Role.Editor)
-  create(
+  async create(
     @Param('id') workspaceId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateInvitationDto,
   ) {
-    return this.invitationsService.create(
+    const invitation = await this.invitationsService.create(
       workspaceId,
       user.userId,
       dto.email,
       dto.role,
     );
+    await this.audit.log({
+      workspaceId,
+      actorId: user.userId,
+      action: 'invitation.created',
+      target: dto.email,
+      metadata: { role: dto.role },
+    });
+    return invitation;
   }
 
   @Get('workspaces/:id/invitations')
@@ -54,8 +66,15 @@ export class InvitationsController {
   async revoke(
     @Param('id') workspaceId: string,
     @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
     await this.invitationsService.revoke(workspaceId, invitationId);
+    await this.audit.log({
+      workspaceId,
+      actorId: user.userId,
+      action: 'invitation.revoked',
+      target: invitationId,
+    });
   }
 
   /** Akceptacja — kontekst workspace wynika z samego zaproszenia. */

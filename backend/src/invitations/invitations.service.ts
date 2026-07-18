@@ -11,6 +11,7 @@ import { Role } from '../common/enums/role.enum';
 import { generateToken, hashToken } from '../common/utils/token.util';
 import { UsersService } from '../users/users.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
+import { AuditService } from '../audit/audit.service';
 import {
   Invitation,
   InvitationDocument,
@@ -42,6 +43,7 @@ export class InvitationsService {
     private readonly workspacesService: WorkspacesService,
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
 
   async create(
@@ -142,6 +144,14 @@ export class InvitationsService {
 
     invitation.status = InvitationStatus.Accepted;
     await invitation.save();
+
+    await this.audit.log({
+      workspaceId,
+      actorId: userId,
+      action: 'member.joined',
+      target: user.email,
+      metadata: { role: invitation.role },
+    });
 
     // Zwracamy publiczny uuid workspace (nie wewnętrzne _id).
     const workspaceUuid =

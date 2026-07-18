@@ -5,11 +5,13 @@ import { ApiKey, ApiKeySchema } from './schemas/api-key.schema';
 import { ApiKeysService } from './api-keys.service';
 import { ApiKeysController } from './api-keys.controller';
 import { CiController } from './ci.controller';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: ApiKey.name, schema: ApiKeySchema }]),
     WorkspacesModule,
+    AuditModule,
   ],
   controllers: [ApiKeysController, CiController],
   providers: [ApiKeysService],

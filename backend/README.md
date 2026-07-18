@@ -106,6 +106,7 @@ src/
 | GET | `/workspaces/:id/invitations` | Owner/Editor |
 | DELETE | `/workspaces/:id/invitations/:invId` | Owner/Editor |
 | POST | `/invitations/accept` | dowolny zalogowany (e-mail musi pasować) |
+| GET | `/workspaces/:id/audit` | Owner — dziennik audytu (członkowie, zaproszenia, klucze API) |
 
 ### Tokeny CI/CD
 | Metoda | Ścieżka | Auth |

@@ -5,6 +5,7 @@ import { Membership, MembershipSchema } from './schemas/membership.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesController } from './workspaces.controller';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { WorkspacesController } from './workspaces.controller';
       { name: Membership.name, schema: MembershipSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    AuditModule,
   ],
   controllers: [WorkspacesController],
   providers: [WorkspacesService],
