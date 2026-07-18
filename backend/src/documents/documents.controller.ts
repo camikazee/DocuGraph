@@ -412,6 +412,18 @@ export class DocumentsController {
     res.send(html);
   }
 
+  /** Eksport wielostronicowy — ZIP ze statycznym site (read-only). */
+  @Get('export.zip')
+  async exportZip(@Param('id') workspaceId: string, @Res() res: Response) {
+    const buffer = await this.documentsService.exportZip(workspaceId);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="documentation.zip"',
+    );
+    res.send(buffer);
+  }
+
   /** Atom feed ostatnio zmienionych dokumentów. */
   @Get('feed.atom')
   async feed(@Param('id') workspaceId: string, @Res() res: Response) {

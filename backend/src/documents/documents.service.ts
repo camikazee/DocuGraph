@@ -850,6 +850,127 @@ export class DocumentsService {
    * (read-only). Nawigacja po lewej, dokumenty jako sekcje; linki wewnętrzne
    * `.md` przepisane na kotwice w obrębie pliku.
    */
+  /** Wspólny arkusz stylów dla eksportów (single-file i multi-page). */
+  private docsCss(): string {
+    return `*{box-sizing:border-box}
+body{margin:0;font:16px/1.7 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1e293b;background:#fff}
+.layout{display:flex;max-width:1200px;margin:0 auto}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid #e2e8f0;background:#f8fafc}
+nav .title{font-weight:700;font-size:18px;margin:0 0 16px;text-decoration:none;color:#0f172a;display:block}
+nav .grp{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin:16px 0 6px}
+nav a{display:block;padding:4px 8px;border-radius:6px;color:#334155;text-decoration:none;font-size:14px}
+nav a:hover{background:#eef2f7}
+main{flex:1;min-width:0;padding:40px 48px}
+.path{font:12px ui-monospace,monospace;color:#94a3b8;margin-bottom:8px}
+h1,h2,h3{line-height:1.25}
+pre{background:#0b1020;color:#e2e8f0;padding:16px;border-radius:10px;overflow:auto}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+:not(pre)>code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:.9em}
+a{color:#6d28d9}
+img{max-width:100%}
+blockquote{border-left:3px solid #c4b5fd;margin:0;padding:4px 16px;color:#475569}
+table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
+@media(max-width:760px){nav{display:none}main{padding:24px}}`;
+  }
+
+  /**
+   * Eksport wielostronicowy: ZIP ze statycznym site (strona per dokument +
+   * współdzielony style.css + index.html). Linki wewnętrzne `.md` i nawigacja
+   * są przepisane na względne ścieżki `.html`, więc działa z file://.
+   */
+  async exportZip(workspaceId: string): Promise<Buffer> {
+    const JSZip = (await import('jszip')).default;
+    const docs = await this.documentModel
+      .find({ workspaceId })
+      .select('filePath title contentHtml')
+      .sort({ filePath: 1 })
+      .lean()
+      .exec();
+
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const resolveRel = (base: string, rel: string) => {
+      const stack = base.split('/').slice(0, -1);
+      for (const part of rel.split('/')) {
+        if (part === '..') stack.pop();
+        else if (part !== '.' && part !== '') stack.push(part);
+      }
+      return stack.join('/');
+    };
+    const byPath = new Set(docs.map((d) => d.filePath));
+    const htmlPathFor = (p: string) => p.replace(/\.md$/i, '.html');
+    const relTo = (fromHtml: string, toHtml: string) =>
+      path.posix.relative(path.posix.dirname(fromHtml), toHtml) ||
+      path.posix.basename(toHtml);
+
+    const groups = new Map<string, typeof docs>();
+    for (const d of docs) {
+      const folder = d.filePath.includes('/')
+        ? d.filePath.split('/')[0]
+        : 'Root';
+      (groups.get(folder) ?? groups.set(folder, []).get(folder)!).push(d);
+    }
+    const navFor = (thisHtml: string) =>
+      [...groups.entries()]
+        .map(
+          ([folder, items]) =>
+            `<div class="grp">${esc(folder)}</div>` +
+            items
+              .map(
+                (d) =>
+                  `<a href="${relTo(thisHtml, htmlPathFor(d.filePath))}">${esc(
+                    d.title || d.filePath,
+                  )}</a>`,
+              )
+              .join(''),
+        )
+        .join('');
+
+    const rewrite = (html: string, fromPath: string, thisHtml: string) =>
+      html.replace(
+        /href="([^":]+?\.md)((?:#[^"]*)?)"/g,
+        (m, href: string, frag: string) => {
+          const target = resolveRel(fromPath, href);
+          if (!byPath.has(target)) return m;
+          return `href="${relTo(thisHtml, htmlPathFor(target))}${frag || ''}"`;
+        },
+      );
+
+    const page = (title: string, thisHtml: string, main: string) =>
+      `<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${esc(title)}</title>
+<link rel="stylesheet" href="${relTo(thisHtml, 'style.css')}" />
+</head><body><div class="layout">
+<nav><a class="title" href="${relTo(thisHtml, 'index.html')}">Documentation</a>${navFor(thisHtml)}</nav>
+<main>${main}</main>
+</div></body></html>`;
+
+    const zip = new JSZip();
+    zip.file('style.css', this.docsCss());
+    for (const d of docs) {
+      const thisHtml = htmlPathFor(d.filePath);
+      const main = `<div class="path">${esc(d.filePath)}</div>${rewrite(
+        d.contentHtml ?? '',
+        d.filePath,
+        thisHtml,
+      )}`;
+      zip.file(thisHtml, page(d.title || d.filePath, thisHtml, main));
+    }
+    zip.file(
+      'index.html',
+      page(
+        'Documentation',
+        'index.html',
+        `<h1>Documentation</h1><p>${docs.length} document${
+          docs.length === 1 ? '' : 's'
+        } — pick one from the sidebar.</p>`,
+      ),
+    );
+    return zip.generateAsync({ type: 'nodebuffer' });
+  }
+
   async exportHtml(workspaceId: string): Promise<string> {
     const docs = await this.documentModel
       .find({ workspaceId })

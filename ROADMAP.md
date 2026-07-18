@@ -68,7 +68,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ## 🎯 Milestone 3 — Publishing & export
 *Make published docs first-class.*
 
-- [ ] **Multi-page static site export** (ZIP: nav + per-page HTML + assets)
+- [x] **Multi-page static site export** — ZIP with a page per document (folders preserved), a shared stylesheet, an index, and internal links/nav rewritten to relative `.html` paths (works from file://)
 - [ ] **Embed images in export** (self-contained, no live API needed)
 - [ ] **Themed / branded export** + PDF export
 - [ ] **Public read-only doc sites** (shareable link, optional auth)
