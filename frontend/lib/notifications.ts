@@ -10,7 +10,9 @@ export interface AppNotification {
 
 /** Czasownik zdarzenia wg rodzaju (np. „moved" vs domyślne „updated"). */
 export function verbFor(kind: string): string {
-  return kind === 'moved' ? 'moved' : 'updated';
+  if (kind === 'moved') return 'moved';
+  if (kind === 'comment') return 'commented on';
+  return 'updated';
 }
 
 /** Zwięzły „ile temu" (just now / Nm / Nh / Nd) dla znacznika czasu ISO. */

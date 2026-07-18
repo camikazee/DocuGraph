@@ -124,6 +124,19 @@ export class DocumentsService {
       author,
       resolved: false,
     });
+    // Powiadom obserwujących dokument o nowym komentarzu (poza autorem).
+    const doc = await this.documentModel
+      .findOne({ workspaceId, filePath })
+      .select('title')
+      .lean()
+      .exec();
+    await this.notifyWatchers(
+      workspaceId,
+      filePath,
+      doc?.title || filePath,
+      author,
+      'comment',
+    );
     return this.listComments(workspaceId, filePath);
   }
 
@@ -203,12 +216,13 @@ export class DocumentsService {
     return doc;
   }
 
-  /** Tworzy powiadomienia dla obserwujących dokument (poza autorem zmiany). */
+  /** Tworzy powiadomienia dla obserwujących dokument (poza autorem zdarzenia). */
   private async notifyWatchers(
     workspaceId: string,
     filePath: string,
     title: string,
     actorId: string | null,
+    kind = 'changed',
   ): Promise<void> {
     const watchers = await this.watchModel
       .find({ workspaceId, filePath })
@@ -225,7 +239,7 @@ export class DocumentsService {
         userId,
         filePath,
         title,
-        kind: 'changed',
+        kind,
         actorId: actorId ?? null,
       })),
     );

@@ -179,6 +179,27 @@ describe('Notifications for watched documents (e2e)', () => {
     expect(unreadOnly.body).toHaveLength(0);
   });
 
+  it('notifies watchers when someone comments on a watched document', async () => {
+    await request(http())
+      .post(`/api/v1/workspaces/${ws}/documents/comments`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ path: DOC, line: 1, quote: '# Setup', body: 'Looks good?' })
+      .expect(201);
+
+    const list = await request(http())
+      .get(`/api/v1/workspaces/${ws}/documents/notifications?unread=1`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .expect(200);
+    const comment = list.body.find(
+      (n: { kind: string }) => n.kind === 'comment',
+    );
+    expect(comment).toMatchObject({
+      kind: 'comment',
+      filePath: DOC,
+      actor: 'Owner',
+    });
+  });
+
   it('notifies watchers when a watched document is moved and migrates the watch', async () => {
     const NEW = 'guide/installation.md';
     await request(http())
