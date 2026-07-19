@@ -11,12 +11,14 @@ import {
   MembershipDocument,
 } from '../src/workspaces/schemas/membership.schema';
 import { Role } from '../src/common/enums/role.enum';
+import { MailerService } from '../src/common/mailer/mailer.service';
 import { internalWorkspaceId, internalUserId } from './uuid-helper';
 
 describe('Invitations (e2e)', () => {
   let app: INestApplication;
   let connection: Connection;
   let membershipModel: Model<MembershipDocument>;
+  let mailer: MailerService;
 
   let ownerToken: string;
   let workspaceId: string;
@@ -58,6 +60,7 @@ describe('Invitations (e2e)', () => {
     membershipModel = app.get<Model<MembershipDocument>>(
       getModelToken(Membership.name),
     );
+    mailer = app.get<MailerService>(MailerService);
     await connection.dropDatabase();
 
     ownerToken = await register('owner@example.com', 'Owner');
@@ -83,6 +86,19 @@ describe('Invitations (e2e)', () => {
     expect(res.body.email).toBe('invitee@example.com');
     expect(res.body.role).toBe('editor');
     expect(res.body.token).toEqual(expect.any(String));
+  });
+
+  it('wysyła zaproszony mail z linkiem akceptującym', async () => {
+    mailer.lastSent = null;
+    await invite(ownerToken, 'mailed@example.com').expect(201);
+    const sent = mailer.lastSent as {
+      to: string;
+      subject: string;
+      link?: string;
+    } | null;
+    expect(sent?.to).toBe('mailed@example.com');
+    expect(sent?.subject).toContain('invited you');
+    expect(sent?.link).toContain('/invite?token=');
   });
 
   it('lista oczekujących zaproszeń', async () => {

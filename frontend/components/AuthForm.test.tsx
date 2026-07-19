@@ -6,6 +6,7 @@ import AuthForm from './AuthForm';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 function renderForm(mode: 'login' | 'register') {

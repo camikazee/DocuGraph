@@ -12,6 +12,7 @@ import { generateToken, hashToken } from '../common/utils/token.util';
 import { UsersService } from '../users/users.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { AuditService } from '../audit/audit.service';
+import { MailerService } from '../common/mailer/mailer.service';
 import {
   Invitation,
   InvitationDocument,
@@ -44,6 +45,7 @@ export class InvitationsService {
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly mailer: MailerService,
   ) {}
 
   async create(
@@ -66,6 +68,26 @@ export class InvitationsService {
       status: InvitationStatus.Pending,
       expiresAt,
     });
+
+    // Wyślij zaproszenie mailem (log-only, gdy brak SMTP). Błąd maila nie może
+    // wywrócić utworzenia zaproszenia — token i tak wraca do zapraszającego.
+    try {
+      const appUrl =
+        this.config.get<string>('appUrl') ?? 'http://localhost:3001';
+      const [workspaceName, inviter] = await Promise.all([
+        this.workspacesService.getName(workspaceId),
+        this.usersService.findById(invitedBy),
+      ]);
+      await this.mailer.sendInvitation(invitation.email, {
+        inviterName: inviter?.name ?? 'A teammate',
+        workspaceName: workspaceName ?? 'a workspace',
+        role,
+        link: `${appUrl}/invite?token=${raw}`,
+        expiresAt,
+      });
+    } catch {
+      /* mail best-effort — zaproszenie już utworzone */
+    }
 
     return {
       id: invitation.uuid,

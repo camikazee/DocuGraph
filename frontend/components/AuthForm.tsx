@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiBaseUrl, apiFetch, ApiError } from '@/lib/api';
 import { setToken } from '@/lib/auth';
@@ -25,10 +25,20 @@ interface FieldErrors {
   password?: string | null;
 }
 
-export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
+/** Zezwól tylko na wewnętrzne ścieżki (bez open-redirect na obce hosty). */
+function safeNext(raw: string | null): string {
+  if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
+  return '/dashboard';
+}
+
+function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   const router = useRouter();
   const { toast } = useToast();
   const isRegister = mode === 'register';
+  const params = useSearchParams();
+  const next = safeNext(params.get('next'));
+  const withNext = (base: string) =>
+    next === '/dashboard' ? base : `${base}?next=${encodeURIComponent(next)}`;
 
   const [name, setName] = useState('');
   // Logowanie wstępnie wypełnione kontem demo (ułatwia podgląd).
@@ -67,7 +77,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       });
       setToken(res.accessToken);
       toast(isRegister ? 'Account created' : 'Signed in', 'success');
-      router.push('/dashboard');
+      router.push(next);
     } catch (err) {
       toast(
         err instanceof ApiError ? err.message : 'Something went wrong',
@@ -178,7 +188,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             <>
               Already have an account?{' '}
               <Link
-                href="/login"
+                href={withNext('/login')}
                 className="font-medium text-accfg hover:opacity-80"
               >
                 Sign in
@@ -188,7 +198,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             <>
               Don&apos;t have an account?{' '}
               <Link
-                href="/register"
+                href={withNext('/register')}
                 className="font-medium text-accfg hover:opacity-80"
               >
                 Sign up
@@ -198,5 +208,13 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         </p>
       </Card>
     </main>
+  );
+}
+
+export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-bg" />}>
+      <AuthFormInner mode={mode} />
+    </Suspense>
   );
 }

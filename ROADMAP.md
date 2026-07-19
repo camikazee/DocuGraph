@@ -9,6 +9,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 
 ### Core
 - [x] Auth: email/password (JWT), GitHub & Slack OAuth, password reset (SMTP)
+- [x] Transactional email from a shared branded template — password reset, watch notifications, daily digest, and **workspace invitations** (invite email with an accept link + `/invite` acceptance flow); log-only without SMTP
 - [x] Workspaces, members, invitations, roles (Owner / Editor / Viewer)
 - [x] Documents as Markdown-as-code: two-phase save (disk = source of truth + Mongo index)
 - [x] Revision history with per-revision diff (+/- line counts)
@@ -62,7 +63,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **More event types** — watchers are notified on change, move, new comment, @mention, and deletion
 - [x] **Email notifications** — instant email to opted-in watchers, plus an opt-in **daily digest** of unread notifications (scheduled cron)
 - [x] **Notification preferences** — per-user email (instant + digest) opt-in and per-event-type mute (changes / moves / comments; mentions always notify) via `/notification-preferences`. Per-document control is covered by watch on/off; per-workspace granularity still open
-- [ ] **Comments & review workflow** — threads, resolve, request changes
+- [x] **Comments & review workflow** — line-anchored comment threads with resolve/reopen, plus a **persisted per-document review status** (in review / approved / changes requested) recording who reviewed and when. Approve is gated on all threads being resolved; requesting changes notifies watchers (`review` notification kind, muteable). Status shows on the reader and in the review view; backed by a 7-scenario e2e.
 - [x] **@mentions** — mention workspace members in a comment via `@` autocomplete; mentioned users get a `mention` notification (+ email if opted in)
 
 ## 🎯 Milestone 3 — Publishing & export

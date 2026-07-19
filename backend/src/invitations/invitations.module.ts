@@ -6,6 +6,7 @@ import { Invitation, InvitationSchema } from './schemas/invitation.schema';
 import { InvitationsService } from './invitations.service';
 import { InvitationsController } from './invitations.controller';
 import { AuditModule } from '../audit/audit.module';
+import { MailerModule } from '../common/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuditModule } from '../audit/audit.module';
     WorkspacesModule,
     UsersModule,
     AuditModule,
+    MailerModule,
   ],
   controllers: [InvitationsController],
   providers: [InvitationsService],

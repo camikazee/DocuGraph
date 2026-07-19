@@ -47,6 +47,39 @@ export class MailerService {
     }
   }
 
+  /**
+   * Wspólny szablon maila: spójny nagłówek (logo), karta z treścią i stopka.
+   * Wszystkie maile budują tylko `body` (środek karty) i przez to layout.
+   */
+  private layout(opts: {
+    preheader?: string;
+    body: string;
+    footer?: string;
+  }): string {
+    const { preheader, body, footer } = opts;
+    const foot =
+      footer ??
+      'You received this email because of activity in your DocuGraph workspace.';
+    return `<!doctype html><html><body style="margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0b0f19;padding:32px;color:#e6e8ee">
+  ${preheader ? `<span style="display:none!important;opacity:0;color:transparent;height:0;width:0;overflow:hidden">${preheader}</span>` : ''}
+  <div style="max-width:520px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:9px;margin:0 0 18px">
+      <span style="display:inline-block;width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,#7c5cff,#3b82f6)"></span>
+      <span style="font-size:15px;font-weight:700;letter-spacing:-0.01em;color:#e6e8ee">DocuGraph</span>
+    </div>
+    <div style="background:#11151f;border:1px solid #222838;border-radius:14px;padding:28px">
+      ${body}
+    </div>
+    <p style="font-size:12px;color:#6b7280;margin:18px 4px 0">${foot}</p>
+  </div>
+</body></html>`;
+  }
+
+  /** Przycisk CTA w spójnym stylu marki. */
+  private button(href: string, label: string): string {
+    return `<a href="${href}" style="display:inline-block;background:#7c5cff;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px">${label}</a>`;
+  }
+
   async sendPasswordReset(
     to: string,
     token: string,
@@ -57,8 +90,67 @@ export class MailerService {
       `You requested a password reset.\n\n` +
       `Open this link to choose a new password (valid for 1 hour):\n${link}\n\n` +
       `If you didn't request this, you can ignore this email.`;
-    const html = this.resetHtml(link);
+    const html = this.layout({
+      preheader: 'Choose a new DocuGraph password',
+      body: `
+    <h1 style="font-size:18px;margin:0 0 8px">Reset your password</h1>
+    <p style="font-size:14px;color:#9aa3b2;margin:0 0 20px">
+      Click the button below to choose a new password. This link expires in an hour.
+    </p>
+    ${this.button(link, 'Choose a new password')}`,
+      footer: "If you didn't request this, you can safely ignore this email.",
+    });
     await this.deliver({ to, subject, token, link }, text, html);
+  }
+
+  /** Zaproszenie do workspace (z linkiem akceptującym i rolą). */
+  async sendInvitation(
+    to: string,
+    opts: {
+      inviterName: string;
+      workspaceName: string;
+      role: string;
+      link: string;
+      expiresAt: Date;
+    },
+  ): Promise<void> {
+    const { inviterName, workspaceName, role, link, expiresAt } = opts;
+    const subject = `${inviterName} invited you to ${workspaceName} on DocuGraph`;
+    const expiry = expiresAt.toUTCString();
+    const text =
+      `${inviterName} invited you to join the "${workspaceName}" workspace on DocuGraph as ${role}.\n\n` +
+      `Accept the invitation (link expires ${expiry}):\n${link}\n\n` +
+      `Sign in or create your account with this email address to join.`;
+    const html = this.invitationHtml({
+      inviterName,
+      workspaceName,
+      role,
+      link,
+      expiry,
+    });
+    await this.deliver({ to, subject, link }, text, html);
+  }
+
+  private invitationHtml(opts: {
+    inviterName: string;
+    workspaceName: string;
+    role: string;
+    link: string;
+    expiry: string;
+  }): string {
+    const { inviterName, workspaceName, role, link, expiry } = opts;
+    return this.layout({
+      preheader: `${inviterName} invited you to ${workspaceName}`,
+      body: `
+    <p style="font-size:13px;color:#9aa3b2;margin:0 0 6px">${inviterName} invited you to a workspace</p>
+    <h1 style="font-size:20px;margin:0 0 6px">${workspaceName}</h1>
+    <p style="font-size:14px;color:#9aa3b2;margin:0 0 20px">
+      You'll join as <strong style="color:#e6e8ee;text-transform:capitalize">${role}</strong>.
+      Sign in or create your account with this email address to accept.
+    </p>
+    ${this.button(link, 'Accept invitation')}`,
+      footer: `This invitation expires ${expiry}. If you weren't expecting it, you can ignore this email.`,
+    });
   }
 
   /** E-mail o zmianie obserwowanego dokumentu (kind → czasownik w treści). */
@@ -90,17 +182,16 @@ export class MailerService {
     link: string;
   }): string {
     const { actorName, verb, filePath, title, link } = opts;
-    return `<!doctype html><html><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0b0f19;padding:32px;color:#e6e8ee">
-  <div style="max-width:480px;margin:0 auto;background:#11151f;border:1px solid #222838;border-radius:14px;padding:28px">
+    return this.layout({
+      preheader: `${actorName} ${verb} ${title}`,
+      body: `
     <p style="font-size:13px;color:#9aa3b2;margin:0 0 6px">${actorName} ${verb} a document you're watching</p>
     <h1 style="font-size:18px;margin:0 0 4px">${title}</h1>
     <p style="font-family:ui-monospace,monospace;font-size:12px;color:#6b7280;margin:0 0 20px">${filePath}</p>
-    <a href="${link}" style="display:inline-block;background:#7c5cff;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px">Open document</a>
-    <p style="font-size:12px;color:#6b7280;margin:20px 0 0">
-      You're receiving this because you watch this document. Turn off email notifications in DocuGraph → Notifications.
-    </p>
-  </div>
-</body></html>`;
+    ${this.button(link, 'Open document')}`,
+      footer:
+        "You're receiving this because you watch this document. Turn off email notifications in DocuGraph → Notifications.",
+    });
   }
 
   /** Dzienny digest nieprzeczytanych powiadomień. */
@@ -118,14 +209,14 @@ export class MailerService {
           `<li style="margin:0 0 10px"><strong style="color:#e6e8ee">${i.title}</strong><br><span style="font-size:12px;color:#9aa3b2">${i.verb} · <span style="font-family:ui-monospace,monospace">${i.filePath}</span></span></li>`,
       )
       .join('');
-    const html = `<!doctype html><html><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0b0f19;padding:32px;color:#e6e8ee">
-  <div style="max-width:520px;margin:0 auto;background:#11151f;border:1px solid #222838;border-radius:14px;padding:28px">
+    const html = this.layout({
+      preheader: `${items.length} unread update${items.length === 1 ? '' : 's'} on DocuGraph`,
+      body: `
     <h1 style="font-size:18px;margin:0 0 16px">${items.length} unread update${items.length === 1 ? '' : 's'}</h1>
     <ul style="list-style:none;padding:0;margin:0 0 20px">${rows}</ul>
-    <a href="${link}" style="display:inline-block;background:#7c5cff;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px">Open DocuGraph</a>
-    <p style="font-size:12px;color:#6b7280;margin:20px 0 0">Turn off the daily digest in DocuGraph → Notifications.</p>
-  </div>
-</body></html>`;
+    ${this.button(link, 'Open DocuGraph')}`,
+      footer: 'Turn off the daily digest in DocuGraph → Notifications.',
+    });
     await this.deliver({ to, subject, link }, text, html);
   }
 
@@ -151,20 +242,5 @@ export class MailerService {
     if (this.config.get<string>('nodeEnv') !== 'production') {
       this.lastSent = mail;
     }
-  }
-
-  private resetHtml(link: string): string {
-    return `<!doctype html><html><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0b0f19;padding:32px;color:#e6e8ee">
-  <div style="max-width:480px;margin:0 auto;background:#11151f;border:1px solid #222838;border-radius:14px;padding:28px">
-    <h1 style="font-size:18px;margin:0 0 8px">Reset your password</h1>
-    <p style="font-size:14px;color:#9aa3b2;margin:0 0 20px">
-      Click the button below to choose a new password. This link expires in an hour.
-    </p>
-    <a href="${link}" style="display:inline-block;background:#7c5cff;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px">Choose a new password</a>
-    <p style="font-size:12px;color:#6b7280;margin:20px 0 0">
-      If you didn't request this, you can safely ignore this email.
-    </p>
-  </div>
-</body></html>`;
   }
 }
