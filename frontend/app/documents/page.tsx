@@ -333,7 +333,7 @@ export default function DocumentsPage() {
   return (
     <AppShell>
       {/* header */}
-      <div className="mb-6 flex items-start gap-4">
+      <div className="mb-6 flex flex-wrap items-start gap-4">
         <div>
           <h1 className="text-[28px] font-bold tracking-tight text-fg">
             Documents
@@ -344,7 +344,7 @@ export default function DocumentsPage() {
               : 'Loading…'}
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-2.5">
+        <div className="ml-auto flex flex-wrap items-center gap-2.5">
           <div className="flex items-center overflow-hidden rounded-lg border border-capbd bg-capbg">
             <button
               onClick={() => exportDocs('html')}
@@ -580,8 +580,9 @@ export default function DocumentsPage() {
         </Card>
       )}
 
-      {/* table */}
-      <div className="overflow-hidden rounded-[14px] border border-line bg-card">
+      {/* table (scrolls horizontally on narrow screens) */}
+      <div className="overflow-x-auto rounded-[14px] border border-line bg-card">
+        <div className="min-w-[720px]">
         <div className="flex items-center border-b border-line bg-panel px-[18px] py-[11px] text-[10.5px] font-semibold uppercase tracking-wider text-muted">
           {canEdit && (
             <span className="flex w-6 items-center">
@@ -709,6 +710,7 @@ export default function DocumentsPage() {
           );
           })}
         </Loader>
+        </div>
       </div>
     </AppShell>
   );

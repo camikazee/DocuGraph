@@ -252,7 +252,8 @@ export default function TeamPage() {
       )}
 
       {/* members table */}
-      <div className="mb-9 overflow-hidden rounded-[14px] border border-line bg-card">
+      <div className="mb-9 overflow-x-auto rounded-[14px] border border-line bg-card">
+        <div className="min-w-[640px]">
         <div className="flex items-center border-b border-line bg-panel px-5 py-[11px] text-[11px] font-semibold uppercase tracking-wider text-muted">
           <span className="flex-1">Member</span>
           <span className="w-[150px]">Role</span>
@@ -341,6 +342,7 @@ export default function TeamPage() {
             </div>
           </div>
         ))}
+        </div>
       </div>
 
       {/* CI/CD tokens */}

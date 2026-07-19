@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { clearToken } from '@/lib/auth';
+import { cn } from '@/lib/cn';
 import { LogoMark } from '@/components/ui/Logo';
 import { SidebarLink } from '@/components/ui/SidebarLink';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
@@ -22,6 +24,8 @@ const NAV = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
 
   function logout() {
     clearToken();
@@ -30,10 +34,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg text-fg2">
-      <aside className="flex w-[222px] flex-none flex-col border-r border-line bg-panel px-3 py-[18px]">
+      {/* Mobile top bar */}
+      <header className="fixed inset-x-0 top-0 z-30 flex items-center gap-3 border-b border-line bg-panel px-4 py-3 lg:hidden">
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open menu"
+          className="grid h-8 w-8 place-items-center rounded-lg border border-line text-fg2 transition hover:bg-rowhover"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </button>
+        <Link href="/dashboard" aria-label="DocuGraph home" className="flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-acc to-blue-500">
+            <LogoMark className="h-4 w-4 text-white" />
+          </span>
+          <span className="text-[15px] font-bold tracking-tight text-fg">DocuGraph</span>
+        </Link>
+        <div className="ml-auto">
+          <NotificationBell />
+        </div>
+      </header>
+
+      {/* Backdrop (mobile, when drawer open) */}
+      {open && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={close}
+          aria-hidden
+        />
+      )}
+
+      {/* Sidebar — static on desktop, off-canvas drawer on mobile */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 flex w-[240px] flex-none flex-col border-r border-line bg-panel px-3 py-[18px] transition-transform',
+          'lg:static lg:z-auto lg:translate-x-0',
+          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        )}
+      >
         <Link
           href="/dashboard"
           aria-label="DocuGraph home"
+          onClick={close}
           className="-mx-1 mb-5 flex items-center gap-2.5 rounded-lg px-3 py-1 transition hover:bg-rowhover"
         >
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-acc to-blue-500">
@@ -44,7 +87,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
         <button
-          onClick={openCommandPalette}
+          onClick={() => {
+            close();
+            openCommandPalette();
+          }}
           className="mb-3 flex items-center gap-2.5 rounded-[9px] border border-line bg-card px-3 py-2 text-left text-[13px] text-fg3 transition hover:border-acc"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="flex-none">
@@ -62,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="px-2.5 pb-2 pt-1.5 text-[10.5px] font-bold uppercase tracking-[0.09em] text-muted">
           Workspace
         </div>
-        <nav className="grid gap-0.5">
+        <nav className="grid gap-0.5" onClick={close}>
           {NAV.map((n) => (
             <SidebarLink key={n.href} {...n} />
           ))}
@@ -80,7 +126,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[1600px] px-11 py-9">{children}</div>
+        <div className="mx-auto max-w-[1600px] px-4 pb-9 pt-[72px] sm:px-6 lg:px-11 lg:py-9">
+          {children}
+        </div>
       </main>
 
       <CommandPalette />

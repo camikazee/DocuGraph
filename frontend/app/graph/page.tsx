@@ -241,7 +241,7 @@ export default function GraphPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[180px_1fr_220px] gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[180px_1fr_220px]">
         {/* FILTER + LEGEND */}
         <aside className="grid content-start gap-5">
           <div>
