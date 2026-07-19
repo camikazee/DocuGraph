@@ -30,6 +30,7 @@ import { SourceDto } from './dto/source.dto';
 import { AddCommentDto, ResolveCommentDto } from './dto/comment.dto';
 import { SetReviewStatusDto } from './dto/review-status.dto';
 import { CreateShareLinkDto } from './dto/share-link.dto';
+import { BulkOperationDto } from './dto/bulk-operation.dto';
 import { MoveDocumentDto } from './dto/move-document.dto';
 import { ReadEventDto, WatchDto } from './dto/telemetry.dto';
 import { PublishDto } from './dto/publish.dto';
@@ -534,6 +535,37 @@ export class DocumentsController {
       target: `${dto.from} → ${dto.to}`,
     });
     this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
+    return result;
+  }
+
+  @Post('bulk')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async bulk(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: BulkOperationDto,
+  ) {
+    if ((dto.op === 'addTag' || dto.op === 'removeTag') && !dto.tag?.trim()) {
+      throw new BadRequestException('A tag is required for this operation');
+    }
+    const actor = this.actorOf(req);
+    const check = await this.checker(workspaceId, req);
+    const result = await this.documentsService.bulkOperation(
+      workspaceId,
+      dto.op,
+      dto.paths,
+      { tag: dto.tag?.trim(), toFolder: dto.toFolder },
+      actor,
+      check,
+    );
+    await this.audit.log({
+      workspaceId,
+      actorId: actor,
+      action: 'document.bulk',
+      target: `${dto.op} × ${result.ok}`,
+    });
+    if (result.ok > 0) this.autoPublish.schedule(workspaceId);
     return result;
   }
 

@@ -74,6 +74,20 @@ export default function DocumentsPage() {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [attention, setAttention] = useState(false);
 
+  const role = profile?.workspaces[0]?.role;
+  const canEdit = role === 'owner' || role === 'editor';
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  function toggleSel(path: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(path)) n.delete(path);
+      else n.add(path);
+      return n;
+    });
+  }
+
   // Wstępny filtr tagu z URL (?tag=…) — bez useSearchParams, by uniknąć Suspense.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tag');
@@ -229,6 +243,57 @@ export default function DocumentsPage() {
       );
     });
   }, [docs, filter, search, tagFilter, attention]);
+
+  const allVisibleSelected =
+    rows.length > 0 && rows.every((d) => selected.has(d.filePath));
+  function toggleAll() {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (rows.every((d) => n.has(d.filePath)))
+        rows.forEach((d) => n.delete(d.filePath));
+      else rows.forEach((d) => n.add(d.filePath));
+      return n;
+    });
+  }
+
+  async function runBulk(
+    op: 'addTag' | 'removeTag' | 'move' | 'delete',
+    extra: { tag?: string; toFolder?: string } = {},
+  ) {
+    if (!ws || selected.size === 0) return;
+    setBulkBusy(true);
+    try {
+      const res = await apiFetch<{ ok: number; failed: number }>(
+        `/workspaces/${ws}/documents/bulk`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ op, paths: [...selected], ...extra }),
+        },
+      );
+      toast(
+        `${res.ok} updated${res.failed ? ` · ${res.failed} failed` : ''}`,
+        res.failed ? 'error' : 'success',
+      );
+      setSelected(new Set());
+      await load();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Bulk action failed', 'error');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+  function bulkAddTag() {
+    const t = window.prompt('Add tag to selected documents:')?.trim();
+    if (t) void runBulk('addTag', { tag: t });
+  }
+  function bulkMove() {
+    const f = window.prompt('Move selected into folder (blank = root):');
+    if (f !== null) void runBulk('move', { toFolder: f.trim() });
+  }
+  function bulkDelete() {
+    if (window.confirm(`Delete ${selected.size} document(s)? This cannot be undone.`))
+      void runBulk('delete');
+  }
 
   async function createDoc(e: React.FormEvent) {
     e.preventDefault();
@@ -435,6 +500,45 @@ export default function DocumentsPage() {
         })()}
       </div>
 
+      {/* bulk action bar */}
+      {canEdit && selected.size > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[12px] border border-acc bg-accsoft px-4 py-2.5">
+          <span className="text-[13px] font-semibold text-accfg">
+            {selected.size} selected
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {(
+              [
+                ['Add tag', bulkAddTag],
+                ['Move to…', bulkMove],
+              ] as const
+            ).map(([label, fn]) => (
+              <button
+                key={label}
+                onClick={fn}
+                disabled={bulkBusy}
+                className="rounded-lg border border-capbd bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc disabled:opacity-60"
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              onClick={bulkDelete}
+              disabled={bulkBusy}
+              className="rounded-lg border border-red-500/35 px-3 py-1.5 text-[12.5px] font-semibold text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="rounded-lg px-2 py-1.5 text-[12.5px] font-semibold text-fg3 transition hover:text-fg2"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* create form */}
       {showForm && (
         <Card className="mb-4">
@@ -479,6 +583,17 @@ export default function DocumentsPage() {
       {/* table */}
       <div className="overflow-hidden rounded-[14px] border border-line bg-card">
         <div className="flex items-center border-b border-line bg-panel px-[18px] py-[11px] text-[10.5px] font-semibold uppercase tracking-wider text-muted">
+          {canEdit && (
+            <span className="flex w-6 items-center">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleAll}
+                aria-label="Select all"
+                className="h-4 w-4 accent-[var(--acc)]"
+              />
+            </span>
+          )}
           <span className="flex-1">Document</span>
           <span className="w-[118px]">Status</span>
           <span className="w-[130px]">Owner</span>
@@ -497,14 +612,28 @@ export default function DocumentsPage() {
             const ss = statusStyle(normalizeStatus(d.status));
           const owner = d.updatedBy ? (owners[d.updatedBy] ?? 'Unknown') : 'CI';
           return (
-            <button
+            <div
               key={d.filePath}
+              className="flex items-center border-t border-line2 px-[18px] transition hover:bg-rowhover"
+            >
+              {canEdit && (
+                <span className="flex w-6 items-center">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(d.filePath)}
+                    onChange={() => toggleSel(d.filePath)}
+                    aria-label={`Select ${d.title}`}
+                    className="h-4 w-4 accent-[var(--acc)]"
+                  />
+                </span>
+              )}
+            <button
               onClick={() =>
                 router.push(
                   `/documents/view?path=${encodeURIComponent(d.filePath)}`,
                 )
               }
-              className="flex w-full items-center border-t border-line2 px-[18px] py-[13px] text-left transition hover:bg-rowhover"
+              className="flex flex-1 items-center py-[13px] text-left"
             >
               <div className="flex min-w-0 flex-1 items-center gap-2.5">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="flex-none">
@@ -568,6 +697,7 @@ export default function DocumentsPage() {
                 {new Date(d.updatedAt).toLocaleDateString()}
               </span>
             </button>
+            </div>
           );
           })}
         </Loader>

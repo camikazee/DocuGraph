@@ -83,7 +83,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [~] **Pagination** — cursor pagination (`limit` + `before`) with "Load more" on the append-only logs (notifications, audit); documents / media / revisions still open
 - [x] **Caching** — in-memory TTL cache (30s) for the graph and health computations per workspace, invalidated on document create/edit/move/delete so results stay fresh
 - [ ] **Graph performance** — virtualize / cluster large graphs
-- [ ] **Bulk operations** — fix orphans, archive stale, bulk tag/move
+- [x] **Bulk operations** — multi-select on the documents page (owner/editor) with a bulk action bar: add/remove a tag, move into a folder (basename preserved), and delete. One `POST /documents/bulk` endpoint applies the op per path, enforces write access per file, and reports per-path success/failure without aborting the batch (tag edits rewrite frontmatter, preserving other fields). Backed by a 7-scenario e2e.
 
 ## 🎯 Milestone 5 — Polish & DX
 *The 20% that makes it feel finished.*

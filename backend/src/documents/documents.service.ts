@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as path from 'path';
+import matter from 'gray-matter';
 import { MarkdownParserService } from './markdown-parser.service';
 import { WorkspaceStorageService } from './workspace-storage.service';
 import {
@@ -486,6 +487,101 @@ export class DocumentsService {
       html,
       updatedAt: (doc as unknown as { updatedAt: Date }).updatedAt,
       workspaceName: workspaceName ?? 'DocuGraph',
+    };
+  }
+
+  // ---- Operacje zbiorcze ----
+
+  /** Dodaje/usuwa tag we frontmatterze, zachowując pozostałe pola. */
+  private applyTag(raw: string, tag: string, add: boolean): string | null {
+    const parsed = matter(raw);
+    const current: string[] = Array.isArray(parsed.data.tags)
+      ? parsed.data.tags.map((t: unknown) => String(t))
+      : [];
+    const has = current.includes(tag);
+    if (add && has) return null; // nic do zmiany
+    if (!add && !has) return null;
+    const next = add ? [...current, tag] : current.filter((t) => t !== tag);
+    return matter.stringify(parsed.content, { ...parsed.data, tags: next });
+  }
+
+  /**
+   * Zbiorcza operacja na wielu dokumentach: add-tag / remove-tag / move / delete.
+   * Egzekwuje prawo zapisu per ścieżka (poprzez `access`), a każdy plik
+   * przetwarza niezależnie — porażka jednego nie przerywa reszty.
+   */
+  async bulkOperation(
+    workspaceId: string,
+    op: 'addTag' | 'removeTag' | 'move' | 'delete',
+    paths: string[],
+    opts: { tag?: string; toFolder?: string },
+    updatedBy: string | null,
+    access?: AccessChecker,
+  ) {
+    const results: {
+      path: string;
+      ok: boolean;
+      error?: string;
+      to?: string;
+    }[] = [];
+
+    for (const raw of paths) {
+      const filePath = path.posix.normalize(raw).replace(/^(\.\/)+/, '');
+      try {
+        if (access && access(filePath) !== 'write') {
+          results.push({ path: filePath, ok: false, error: 'No write access' });
+          continue;
+        }
+        if (op === 'delete') {
+          await this.deleteDocument(workspaceId, filePath, updatedBy);
+          results.push({ path: filePath, ok: true });
+        } else if (op === 'move') {
+          const folder = (opts.toFolder ?? '').replace(/^\/+|\/+$/g, '').trim();
+          const base = path.posix.basename(filePath);
+          const to = folder ? `${folder}/${base}` : base;
+          if (access && access(to) !== 'write') {
+            results.push({
+              path: filePath,
+              ok: false,
+              error: 'No write access to target',
+            });
+            continue;
+          }
+          await this.moveDocument(workspaceId, filePath, to, updatedBy);
+          results.push({ path: filePath, ok: true, to });
+        } else {
+          // addTag / removeTag
+          const doc = await this.documentModel
+            .findOne({ workspaceId, filePath })
+            .select('contentRaw')
+            .lean()
+            .exec();
+          if (!doc) throw new NotFoundException('Document not found');
+          const next = this.applyTag(
+            doc.contentRaw ?? '',
+            opts.tag ?? '',
+            op === 'addTag',
+          );
+          if (next === null) {
+            results.push({ path: filePath, ok: true }); // no-op (już taki stan)
+          } else {
+            await this.upsert(workspaceId, filePath, next, updatedBy);
+            results.push({ path: filePath, ok: true });
+          }
+        }
+      } catch (err) {
+        results.push({
+          path: filePath,
+          ok: false,
+          error: err instanceof Error ? err.message : 'Failed',
+        });
+      }
+    }
+
+    return {
+      ok: results.filter((r) => r.ok).length,
+      failed: results.filter((r) => !r.ok).length,
+      results,
     };
   }
 
