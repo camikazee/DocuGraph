@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { LogoMark } from '@/components/ui/Logo';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { NoAccess } from '@/components/ui/NoAccess';
+import { AccessPanel } from '@/components/AccessPanel';
 import { useToast } from '@/components/ui/Toast';
 import { apiBaseUrl, apiFetch, ApiError } from '@/lib/api';
 import { getToken } from '@/lib/auth';
@@ -55,6 +56,7 @@ function ReaderContent() {
   const { toast } = useToast();
 
   const [isFav, setIsFav] = useState(false);
+  const [showAccess, setShowAccess] = useState(false);
 
   useEffect(() => {
     if (!ws || !path) return;
@@ -349,6 +351,19 @@ function ReaderContent() {
                   </svg>
                   Edit
                 </Link>
+                {role === 'owner' && (
+                  <button
+                    onClick={() => setShowAccess(true)}
+                    className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
+                    title="Manage who can see or edit this file"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                      <rect x="3" y="7" width="10" height="7" rx="1.3" stroke="var(--accfg)" strokeWidth="1.3" />
+                      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="var(--accfg)" strokeWidth="1.3" strokeLinecap="round" />
+                    </svg>
+                    Access
+                  </button>
+                )}
                 {(role === 'owner' || role === 'editor') && (
                   <button
                     onClick={deleteDoc}
@@ -442,6 +457,14 @@ function ReaderContent() {
           </div>
         )}
       </aside>
+
+      {showAccess && ws && (
+        <AccessPanel
+          ws={ws}
+          filePath={path}
+          onClose={() => setShowAccess(false)}
+        />
+      )}
     </div>
   );
 }

@@ -172,15 +172,27 @@ export default function TeamPage() {
           </p>
         </div>
         {myRole === 'owner' && (
-          <Link
-            href="/audit"
-            className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc"
-          >
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <path d="M8 1.5l5.5 2.2v3.6c0 3.3-2.3 5.4-5.5 6.7-3.2-1.3-5.5-3.4-5.5-6.7V3.7L8 1.5Z" stroke="var(--accfg)" strokeWidth="1.2" strokeLinejoin="round" />
-            </svg>
-            Audit log
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/access"
+              className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <rect x="3" y="7" width="10" height="7" rx="1.3" stroke="var(--accfg)" strokeWidth="1.2" />
+                <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="var(--accfg)" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+              Access control
+            </Link>
+            <Link
+              href="/audit"
+              className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M8 1.5l5.5 2.2v3.6c0 3.3-2.3 5.4-5.5 6.7-3.2-1.3-5.5-3.4-5.5-6.7V3.7L8 1.5Z" stroke="var(--accfg)" strokeWidth="1.2" strokeLinejoin="round" />
+              </svg>
+              Audit log
+            </Link>
+          </div>
         )}
       </div>
 

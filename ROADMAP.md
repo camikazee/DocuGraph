@@ -103,7 +103,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **ZIP import** — `POST /documents/import.zip` expands a `.md` tree into the workspace (paths preserved, non-md ignored, invalid zip rejected)
 - [x] **Local directory upload** — pick a folder from disk (`webkitdirectory`) on the documents page; each `.md` is uploaded preserving the tree (top folder stripped)
 - [x] **Private Git import** — optional GitHub token (stored AES-encrypted like other secrets, never returned — only `tokenConfigured`) enables importing private repos via the git blobs API; file cap raised 300→2000. Token config + no-leak covered by e2e (the private GitHub fetch itself needs a real private repo to verify live)
-- [ ] **Per-resource access control** — per-folder / per-path permissions on top of workspace RBAC (Owner/Editor/Viewer already enforced). *(large)*
+- [x] **Per-resource access control** — groups (named member sets) + path rules on top of workspace RBAC. A rule targets a folder (path ending `/`) or a single file, applies to Everyone / a group / a user, and grants `hidden` / `read` / `write`. Most-specific path wins (tie → highest level); Owner and CI bypass; no rules → workspace role. Hidden docs disappear from list/graph/search/exports and `by-path` 404s; writes are blocked with 403. Owner-only admin at `/access` (groups + rules) plus an in-reader **Access** panel to set rules on the open file/folder. Backed by a 6-scenario e2e (hide-folder-reveal-file, dev/client groups, read+write, owner bypass, search/graph filtering).
 
 ## 🎯 Milestone 7 — Public demo showcase (do last)
 *Let anyone see it working straight from GitHub, once the features above exist.*
