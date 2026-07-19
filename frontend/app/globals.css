@@ -70,6 +70,28 @@ html[data-theme='light'] {
   }
 }
 
+/* Keyboard focus: a consistent, visible ring even where `outline-none` is set
+   for the mouse. Kept outside @layer (and after @tailwind utilities) so it wins
+   over the `outline-none` utility on equal specificity. Only keyboard/AT focus. */
+:focus-visible {
+  outline: 2px solid var(--accfg);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced-motion app-wide: neutralize transitions and animations for
+   users who ask for it (spinners freeze, toasts just fade). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Toast notifications — enter/exit + lifetime progress bar. */
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(20px) scale(0.96); }

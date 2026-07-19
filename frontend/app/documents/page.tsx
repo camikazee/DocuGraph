@@ -654,7 +654,15 @@ export default function DocumentsPage() {
                           key={t}
                           role="button"
                           tabIndex={0}
+                          aria-label={`Filter by tag ${t}`}
                           onClick={(e) => { e.stopPropagation(); setTagFilter(t); }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setTagFilter(t);
+                            }
+                          }}
                           className="rounded bg-panel px-1.5 py-0.5 text-[10.5px] text-fg3 transition hover:text-accfg"
                         >
                           #{t}

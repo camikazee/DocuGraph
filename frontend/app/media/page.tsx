@@ -413,7 +413,15 @@ export default function MediaPage() {
               <span
                 role="button"
                 tabIndex={0}
+                aria-label="Reconnect volume"
                 onClick={(e) => { e.stopPropagation(); void reconnect(v); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void reconnect(v);
+                  }
+                }}
                 className="flex flex-none items-center gap-1 text-[11px] font-medium text-amber-400 hover:opacity-80"
                 title="Connection lost — reconnect"
               >
