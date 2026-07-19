@@ -7,6 +7,7 @@ import { json, urlencoded } from 'express';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { ErrorLogService } from './error-log/error-log.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -60,8 +61,8 @@ async function bootstrap() {
     }),
   );
 
-  // Spójny kształt błędów
-  app.useGlobalFilters(new AllExceptionsFilter());
+  // Spójny kształt błędów + zapis 5xx do lokalnego dziennika błędów.
+  app.useGlobalFilters(new AllExceptionsFilter(app.get(ErrorLogService)));
 
   // Dokumentacja OpenAPI pod /api/docs — domyślnie wyłączona w produkcji
   // (włącz świadomie przez SWAGGER_ENABLED=true).

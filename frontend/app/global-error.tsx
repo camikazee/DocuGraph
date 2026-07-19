@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { reportClientError } from '@/lib/report-error';
 
 /**
  * Granica błędu poziomu root layout — zastępuje cały layout, więc renderuje
@@ -16,6 +17,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error(error);
+    void reportClientError(error.message, error.stack);
   }, [error]);
 
   return (

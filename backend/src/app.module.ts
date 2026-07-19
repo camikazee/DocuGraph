@@ -17,6 +17,7 @@ import { MediaModule } from './media/media.module';
 import { MailerModule } from './common/mailer/mailer.module';
 import { NotificationPreferencesModule } from './notification-preferences/notification-preferences.module';
 import { AccessModule } from './access/access.module';
+import { ErrorLogModule } from './error-log/error-log.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
 @Module({
@@ -56,6 +57,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
     ApiKeysModule,
     DocumentsModule,
     MediaModule,
+    ErrorLogModule,
   ],
   providers: [
     // Globalny rate limiting na wszystkie endpointy (chroni m.in. logowanie).

@@ -49,7 +49,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 
 - [x] **UUID public identifiers** — audit confirmed all public ids are UUID/filePath; closed the last raw `_id` leak in the full-document response (`updatedBy` now resolves to author name)
 - [x] **Observability** — per-request id (`x-request-id`, echoed + in error bodies), HTTP access log, liveness `/health` + readiness `/ready` (503 when DB down)
-- [ ] **Error tracking** — wire Sentry (or equivalent) on backend + frontend
+- [x] **Error tracking (local, no third party)** — decided against Sentry; errors are captured locally. Backend persists unhandled 5xx to an `error_logs` collection (message, stack, method/path, status, `x-request-id` correlation, workspace + user when known; auto-pruned after 30 days via TTL). The frontend error boundaries report client crashes to `POST /workspaces/:id/client-errors` (best-effort). An Owner-only `/errors` page lists this workspace's errors with cursor pagination — **sanitized (no stack traces over the API)** and tenant-scoped. Covered by e2e (record/list, no-stack-leak, owner-only 403, validation).
 - [x] **Audit log** — access/admin + document-level events (member joined/role changed/removed, invitation created/revoked, API key created/revoked, repository configured, published, document moved) with actor + target; Owner-only `GET /workspaces/:id/audit` and an Owner-only `/audit` view (linked from Team)
 - [ ] **Backups** — documented Mongo backup/restore + volume snapshot story
 - [ ] **Secrets** — production secret management (not `.env` on disk)

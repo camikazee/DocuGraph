@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
+import { reportClientError } from '@/lib/report-error';
 
 /** Granica błędu segmentu trasy (App Router). Stan „coś poszło nie tak". */
 export default function Error({
@@ -12,8 +13,9 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log po stronie klienta — w realnym wdrożeniu wysłać do Sentry/itp.
     console.error(error);
+    // Zgłoś do lokalnego dziennika błędów (best-effort).
+    void reportClientError(error.message, error.stack);
   }, [error]);
 
   return (

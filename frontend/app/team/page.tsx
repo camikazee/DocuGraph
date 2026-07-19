@@ -192,6 +192,16 @@ export default function TeamPage() {
               </svg>
               Audit log
             </Link>
+            <Link
+              href="/errors"
+              className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6.3" stroke="var(--accfg)" strokeWidth="1.2" />
+                <path d="M8 5v3.4M8 10.5v.1" stroke="var(--accfg)" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              Error log
+            </Link>
           </div>
         )}
       </div>

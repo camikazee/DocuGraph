@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import type { ErrorLogService } from '../../error-log/error-log.service';
 
 interface ErrorResponseBody {
   statusCode: number;
@@ -24,6 +25,12 @@ interface ErrorResponseBody {
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
+
+  /**
+   * `errorLog` jest opcjonalny: w produkcji wstrzykiwany przez `main.ts`
+   * (lokalny dziennik błędów), w testach filtr tworzony jako `new` bez niego.
+   */
+  constructor(private readonly errorLog?: ErrorLogService) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -56,6 +63,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
         `${request.method} ${request.url} rid=${requestId ?? '-'}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+      // Persist to the local error log (best-effort; never blocks the response).
+      const req = request as Request & {
+        workspaceId?: string;
+        user?: { userId?: string };
+      };
+      void this.errorLog?.record({
+        source: 'server',
+        message:
+          exception instanceof Error ? exception.message : String(exception),
+        stack: exception instanceof Error ? (exception.stack ?? null) : null,
+        method: request.method,
+        path: request.url,
+        statusCode: status,
+        requestId: requestId ?? null,
+        userAgent: (request.headers['user-agent'] as string) ?? null,
+        workspaceId: req.workspaceId ?? null,
+        userId: req.user?.userId ?? null,
+      });
     }
 
     const responseBody: ErrorResponseBody = {
