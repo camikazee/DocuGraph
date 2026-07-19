@@ -28,6 +28,41 @@ Backend (`backend/.env.example` lists everything). Minimum for production:
 
 Frontend build arg `NEXT_PUBLIC_API_URL` must point at the **public** API URL.
 
+### Secrets as files (no plaintext `.env` in production)
+
+Any variable can be supplied from a file instead of a plaintext value: set
+`<NAME>_FILE` to a path and the backend loads its contents into `<NAME>` at
+startup (an explicit `<NAME>` always wins; a single trailing newline is
+stripped). This is the Docker / Swarm / Kubernetes *secrets* convention, so
+secrets can be mounted as files (`/run/secrets/…`) and never touch a `.env` on
+disk.
+
+Docker Compose (Swarm) example:
+
+```yaml
+services:
+  backend:
+    environment:
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      MEDIA_SECRET_FILE: /run/secrets/media_secret
+      MONGO_URI_FILE: /run/secrets/mongo_uri
+      SMTP_PASS_FILE: /run/secrets/smtp_pass
+    secrets: [jwt_secret, media_secret, mongo_uri, smtp_pass]
+
+secrets:
+  jwt_secret:   { external: true }
+  media_secret: { external: true }
+  mongo_uri:    { external: true }
+  smtp_pass:    { external: true }
+```
+
+Create them with `docker secret create jwt_secret -` (Swarm) or **Portainer →
+Secrets**; for plain `docker compose` use `secrets: { jwt_secret: { file: ./secrets/jwt_secret } }`
+kept outside the repo. Kubernetes: mount a `Secret` as files and point the
+`*_FILE` vars at the mount path. **`MEDIA_SECRET` must be stable across restarts
+and deploys** — rotating it makes previously-encrypted volume creds / Git
+remotes unreadable.
+
 ## 2. Hardening checklist
 
 - [ ] `NODE_ENV=production`, real `JWT_SECRET` + `MEDIA_SECRET` (not the compose defaults).

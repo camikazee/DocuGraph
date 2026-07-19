@@ -8,8 +8,16 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ErrorLogService } from './error-log/error-log.service';
+import { hydrateFileSecrets } from './config/file-secrets';
 
 async function bootstrap() {
+  // Wczytaj sekrety z plików (*_FILE → env) PRZED walidacją configu, aby móc
+  // uruchamiać z sekretami montowanymi jako pliki zamiast .env na dysku.
+  const loaded = hydrateFileSecrets();
+  if (loaded.length) {
+    new Logger('Secrets').log(`Loaded from *_FILE: ${loaded.join(', ')}`);
+  }
+
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
