@@ -26,6 +26,7 @@ import { AuditModule } from '../audit/audit.module';
 import { MailerModule } from '../common/mailer/mailer.module';
 import { NotificationPreferencesModule } from '../notification-preferences/notification-preferences.module';
 import { MediaModule } from '../media/media.module';
+import { AccessModule } from '../access/access.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { MediaModule } from '../media/media.module';
     MailerModule, // e-mail o zmianach obserwowanych dokumentów
     NotificationPreferencesModule, // opt-in na e-maile
     MediaModule, // odczyt bajtów assetów (osadzanie obrazów w eksporcie)
+    AccessModule, // grupy + reguły dostępu (egzekwowanie per-resource)
   ],
   controllers: [DocumentsController, WebhooksController],
   providers: [

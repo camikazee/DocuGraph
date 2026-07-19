@@ -28,6 +28,7 @@ import { UsersService } from '../users/users.service';
 import { NotificationPreferencesService } from '../notification-preferences/notification-preferences.service';
 import { MediaService } from '../media/media.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
+import { AccessChecker } from '../access/access.service';
 import { lineDiff } from './diff.util';
 
 @Injectable()
@@ -135,7 +136,12 @@ export class DocumentsService {
    * z eventów `read`, zdeduplikowane po pliku (najnowszy odczyt), z tytułem.
    * Pomija dokumenty, które już nie istnieją.
    */
-  async recentlyViewed(workspaceId: string, userId: string, limit = 15) {
+  async recentlyViewed(
+    workspaceId: string,
+    userId: string,
+    limit = 15,
+    access?: AccessChecker,
+  ) {
     const rows = await this.eventModel.aggregate<{
       _id: string;
       viewedAt: Date;
@@ -161,6 +167,7 @@ export class DocumentsService {
     const titleByPath = new Map(docs.map((d) => [d.filePath, d.title]));
     return rows
       .filter((r) => titleByPath.has(r._id))
+      .filter((r) => !access || access(r._id) !== 'none')
       .map((r) => ({
         filePath: r._id,
         title: titleByPath.get(r._id) ?? r._id,
@@ -514,7 +521,12 @@ export class DocumentsService {
   async listNotifications(
     workspaceId: string,
     userId: string,
-    opts: { unreadOnly?: boolean; limit?: number; before?: string } = {},
+    opts: {
+      unreadOnly?: boolean;
+      limit?: number;
+      before?: string;
+      access?: AccessChecker;
+    } = {},
   ) {
     const filter: Record<string, unknown> = { workspaceId, userId };
     if (opts.unreadOnly) filter.readAt = null;
@@ -523,13 +535,17 @@ export class DocumentsService {
       const cursor = new Date(opts.before);
       if (!isNaN(cursor.getTime())) filter.createdAt = { $lt: cursor };
     }
-    const items = await this.notificationModel
+    const found = await this.notificationModel
       .find(filter)
       .sort({ createdAt: -1 })
       .limit(Math.min(opts.limit ?? 30, 100))
       .populate<{ actorId: UserDocument | null }>('actorId', 'name')
       .lean()
       .exec();
+    // Ukryj powiadomienia o dokumentach, do których user stracił dostęp.
+    const items = opts.access
+      ? found.filter((n) => opts.access!(n.filePath) !== 'none')
+      : found;
     return items.map((n) => {
       const actor = n.actorId as { name?: string } | null;
       return {
@@ -689,29 +705,40 @@ export class DocumentsService {
   }
 
   /** Graf dokumentów (Moduł C): węzły + krawędzie (linki do istniejących plików). */
-  async getGraph(workspaceId: string) {
+  async getGraph(workspaceId: string, access?: AccessChecker) {
     const key = `graph:${workspaceId}`;
-    const hit = this.cacheGet<{
+    type Graph = {
       nodes: { filePath: string; title: string }[];
       edges: { from: string; to: string }[];
-    }>(key);
-    if (hit) return hit;
-
-    const docs = await this.documentModel
-      .find({ workspaceId })
-      .select('filePath title links.outgoing')
-      .exec();
-    const paths = new Set(docs.map((d) => d.filePath));
-    const nodes = docs.map((d) => ({ filePath: d.filePath, title: d.title }));
-    const edges: { from: string; to: string }[] = [];
-    for (const d of docs) {
-      for (const to of d.links?.outgoing ?? []) {
-        if (paths.has(to)) edges.push({ from: d.filePath, to });
+    };
+    let full = this.cacheGet<Graph>(key);
+    if (!full) {
+      const docs = await this.documentModel
+        .find({ workspaceId })
+        .select('filePath title links.outgoing')
+        .exec();
+      const paths = new Set(docs.map((d) => d.filePath));
+      const nodes = docs.map((d) => ({ filePath: d.filePath, title: d.title }));
+      const edges: { from: string; to: string }[] = [];
+      for (const d of docs) {
+        for (const to of d.links?.outgoing ?? []) {
+          if (paths.has(to)) edges.push({ from: d.filePath, to });
+        }
       }
+      full = { nodes, edges };
+      this.cacheSet(key, full);
     }
-    const result = { nodes, edges };
-    this.cacheSet(key, result);
-    return result;
+    if (!access) return full;
+    // Ukryj węzły bez dostępu i krawędzie dotykające ukrytych węzłów.
+    const visible = new Set(
+      full.nodes
+        .filter((n) => access(n.filePath) !== 'none')
+        .map((n) => n.filePath),
+    );
+    return {
+      nodes: full.nodes.filter((n) => visible.has(n.filePath)),
+      edges: full.edges.filter((e) => visible.has(e.from) && visible.has(e.to)),
+    };
   }
 
   /** Statystyki workspace liczone z realnych danych (rewizje = edycje). */
@@ -986,9 +1013,9 @@ export class DocumentsService {
    * Zwięzły raport zdrowia dokumentacji — pod bramkę CI/CD. `ok=false`, gdy są
    * zepsute linki. Liczy też sieroty (bez wejść/wyjść) i strony nieświeże (30+ dni).
    */
-  async healthReport(workspaceId: string) {
+  async healthReport(workspaceId: string, access?: AccessChecker) {
     const key = `health:${workspaceId}`;
-    const hit = this.cacheGet<{
+    type Health = {
       ok: boolean;
       counts: {
         documents: number;
@@ -996,9 +1023,15 @@ export class DocumentsService {
         orphans: number;
         stale: number;
       };
-      brokenLinks: unknown[];
-    }>(key);
-    if (hit) return hit;
+      brokenLinks: {
+        from: string;
+        to: string;
+        line: number;
+        suggestion: string | null;
+      }[];
+    };
+    const cached = this.cacheGet<Health>(key);
+    if (cached) return this.applyAccessToHealth(cached, access);
 
     const docs = await this.documentModel
       .find({ workspaceId })
@@ -1037,7 +1070,27 @@ export class DocumentsService {
       brokenLinks,
     };
     this.cacheSet(key, result);
-    return result;
+    return this.applyAccessToHealth(result, access);
+  }
+
+  /** Filtruje zepsute linki po dostępie (ukryte źródła nie wyciekają ścieżek). */
+  private applyAccessToHealth<
+    T extends {
+      ok: boolean;
+      counts: { brokenLinks: number };
+      brokenLinks: { from: string }[];
+    },
+  >(report: T, access?: AccessChecker): T {
+    if (!access) return report;
+    const brokenLinks = report.brokenLinks.filter(
+      (b) => access(b.from) !== 'none',
+    );
+    return {
+      ...report,
+      ok: brokenLinks.length === 0,
+      counts: { ...report.counts, brokenLinks: brokenLinks.length },
+      brokenLinks,
+    };
   }
 
   /**
@@ -1118,27 +1171,39 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
    * Eksport źródłowy: ZIP z surowymi plikami `.md` pod ich oryginalnymi
    * ścieżkami (odwzorowanie katalogu) — do łatwego pobrania/backupu/importu.
    */
-  async exportSourceZip(workspaceId: string): Promise<Buffer> {
+  async exportSourceZip(
+    workspaceId: string,
+    access?: AccessChecker,
+  ): Promise<Buffer> {
     const JSZip = (await import('jszip')).default;
-    const docs = await this.documentModel
+    const all = await this.documentModel
       .find({ workspaceId })
       .select('filePath contentRaw')
       .sort({ filePath: 1 })
       .lean()
       .exec();
+    const docs = access
+      ? all.filter((d) => access(d.filePath) !== 'none')
+      : all;
     const zip = new JSZip();
     for (const d of docs) zip.file(d.filePath, d.contentRaw ?? '');
     return zip.generateAsync({ type: 'nodebuffer' });
   }
 
-  async exportZip(workspaceId: string): Promise<Buffer> {
+  async exportZip(
+    workspaceId: string,
+    access?: AccessChecker,
+  ): Promise<Buffer> {
     const JSZip = (await import('jszip')).default;
-    const docs = await this.documentModel
+    const all = await this.documentModel
       .find({ workspaceId })
       .select('filePath title contentHtml')
       .sort({ filePath: 1 })
       .lean()
       .exec();
+    const docs = access
+      ? all.filter((d) => access(d.filePath) !== 'none')
+      : all;
 
     const esc = (s: string) =>
       s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1228,13 +1293,19 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
     return zip.generateAsync({ type: 'nodebuffer' });
   }
 
-  async exportHtml(workspaceId: string): Promise<string> {
-    const docs = await this.documentModel
+  async exportHtml(
+    workspaceId: string,
+    access?: AccessChecker,
+  ): Promise<string> {
+    const all = await this.documentModel
       .find({ workspaceId })
       .select('filePath title contentHtml')
       .sort({ filePath: 1 })
       .lean()
       .exec();
+    const docs = access
+      ? all.filter((d) => access(d.filePath) !== 'none')
+      : all;
 
     const slug = (p: string) => 'doc-' + p.replace(/[^a-zA-Z0-9]+/g, '-');
     const esc = (s: string) =>
@@ -1326,14 +1397,17 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
   }
 
   /** Najnowiej zmienione dokumenty (do feedu „ostatnie zmiany"). */
-  async recent(workspaceId: string, limit = 30) {
-    const docs = await this.documentModel
+  async recent(workspaceId: string, limit = 30, access?: AccessChecker) {
+    const found = await this.documentModel
       .find({ workspaceId })
       .select('filePath title updatedAt')
       .sort({ updatedAt: -1 })
-      .limit(limit)
+      .limit(access ? limit * 3 : limit)
       .lean()
       .exec();
+    const docs = (
+      access ? found.filter((d) => access(d.filePath) !== 'none') : found
+    ).slice(0, limit);
     return docs.map((d) => ({
       filePath: d.filePath,
       title: d.title,
@@ -1649,8 +1723,8 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
     return doc;
   }
 
-  async list(workspaceId: string) {
-    const [docs, readAgg, broken] = await Promise.all([
+  async list(workspaceId: string, access?: AccessChecker) {
+    const [allDocs, readAgg, broken] = await Promise.all([
       this.documentModel
         .find({ workspaceId })
         .select(
@@ -1676,6 +1750,11 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
       this.getBrokenLinks(workspaceId),
     ]);
     const readsByPath = new Map(readAgg.map((r) => [r._id, r.reads]));
+
+    // Egzekwowanie widoczności: ukryj dokumenty bez dostępu (level 'none').
+    const docs = access
+      ? allDocs.filter((d) => access(d.filePath) !== 'none')
+      : allDocs;
 
     // Per-document health (surfaced as badges in the list).
     const paths = new Set(docs.map((d) => d.filePath));
@@ -1715,8 +1794,8 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
   }
 
   /** Wyszukiwanie pełnotekstowe (Moduł B) — scoped do workspace, po trafności. */
-  async search(workspaceId: string, query: string) {
-    const docs = await this.documentModel
+  async search(workspaceId: string, query: string, access?: AccessChecker) {
+    const found = await this.documentModel
       .find(
         { workspaceId, $text: { $search: query } },
         { score: { $meta: 'textScore' } },
@@ -1725,6 +1804,9 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
       .sort({ score: { $meta: 'textScore' } })
       .limit(20)
       .exec();
+    const docs = access
+      ? found.filter((d) => access(d.filePath) !== 'none')
+      : found;
 
     const q = query.toLowerCase();
     return docs.map((d) => ({

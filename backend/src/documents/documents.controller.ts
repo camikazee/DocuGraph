@@ -36,6 +36,8 @@ import { GitPublishService } from './git-publish.service';
 import { AutoPublishService } from './auto-publish.service';
 import { UsersService } from '../users/users.service';
 import { AuditService } from '../audit/audit.service';
+import { AccessService, AccessChecker } from '../access/access.service';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 @Controller('workspaces/:id/documents')
 @UseGuards(CombinedAuthGuard)
@@ -48,11 +50,36 @@ export class DocumentsController {
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly access: AccessService,
   ) {}
 
   /** Aktor akcji: zalogowany user (JWT) albo null dla tokenu CI. */
   private actorOf(req: RequestWithWorkspace): string | null {
     return req.authType === 'jwt' ? req.user.userId : null;
+  }
+
+  /** Checker dostępu dla bieżącego usera (CI/Owner = pełny dostęp). */
+  private checker(
+    workspaceId: string,
+    req: RequestWithWorkspace,
+  ): Promise<AccessChecker> {
+    return this.access.buildChecker(
+      workspaceId,
+      this.actorOf(req),
+      req.workspaceRole,
+    );
+  }
+
+  /** Rzuca 403, gdy user nie ma prawa zapisu do ścieżki. */
+  private async assertCanWrite(
+    workspaceId: string,
+    req: RequestWithWorkspace,
+    filePath: string,
+  ): Promise<void> {
+    const check = await this.checker(workspaceId, req);
+    if (check(filePath) !== 'write') {
+      throw new ForbiddenException('No write access to this path');
+    }
   }
 
   @Post()
@@ -63,6 +90,7 @@ export class DocumentsController {
     @Req() req: RequestWithWorkspace,
     @Body() dto: CreateDocumentDto,
   ) {
+    await this.assertCanWrite(workspaceId, req, dto.file_path);
     const updatedBy = req.authType === 'jwt' ? req.user.userId : null;
     const doc = await this.documentsService.upsert(
       workspaceId,
@@ -76,13 +104,25 @@ export class DocumentsController {
   }
 
   @Get()
-  list(@Param('id') workspaceId: string) {
-    return this.documentsService.list(workspaceId);
+  async list(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    return this.documentsService.list(
+      workspaceId,
+      await this.checker(workspaceId, req),
+    );
   }
 
   @Get('graph')
-  graph(@Param('id') workspaceId: string) {
-    return this.documentsService.getGraph(workspaceId);
+  async graph(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    return this.documentsService.getGraph(
+      workspaceId,
+      await this.checker(workspaceId, req),
+    );
   }
 
   @Get('stats')
@@ -115,12 +155,17 @@ export class DocumentsController {
 
   /** Ostatnio przeglądane przez zalogowanego usera (historia przeglądania). */
   @Get('recently-viewed')
-  recentlyViewed(
+  async recentlyViewed(
     @Param('id') workspaceId: string,
     @Req() req: RequestWithWorkspace,
   ) {
     if (req.authType !== 'jwt') return [];
-    return this.documentsService.recentlyViewed(workspaceId, req.user.userId);
+    return this.documentsService.recentlyViewed(
+      workspaceId,
+      req.user.userId,
+      15,
+      await this.checker(workspaceId, req),
+    );
   }
 
   @Get('favorites')
@@ -169,7 +214,7 @@ export class DocumentsController {
   // ---- Powiadomienia o zmianach w obserwowanych dokumentach ----
 
   @Get('notifications')
-  notifications(
+  async notifications(
     @Param('id') workspaceId: string,
     @Req() req: RequestWithWorkspace,
     @Query('unread') unread?: string,
@@ -184,6 +229,7 @@ export class DocumentsController {
         unreadOnly: unread === '1' || unread === 'true',
         before,
         limit: limit ? parseInt(limit, 10) : undefined,
+        access: await this.checker(workspaceId, req),
       },
     );
   }
@@ -394,6 +440,8 @@ export class DocumentsController {
     @Req() req: RequestWithWorkspace,
     @Body() dto: MoveDocumentDto,
   ) {
+    await this.assertCanWrite(workspaceId, req, dto.from);
+    await this.assertCanWrite(workspaceId, req, dto.to);
     const updatedBy = this.actorOf(req);
     const result = await this.documentsService.moveDocument(
       workspaceId,
@@ -422,6 +470,7 @@ export class DocumentsController {
     if (!path || typeof path !== 'string') {
       throw new BadRequestException('Query param "path" must be a string');
     }
+    await this.assertCanWrite(workspaceId, req, path);
     const deletedBy = this.actorOf(req);
     const result = await this.documentsService.deleteDocument(
       workspaceId,
@@ -445,22 +494,42 @@ export class DocumentsController {
 
   /** Zwięzłe zdrowie dokumentacji dla CI (działa z tokenem dg_live_…). */
   @Get('health')
-  health(@Param('id') workspaceId: string) {
-    return this.documentsService.healthReport(workspaceId);
+  async health(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    return this.documentsService.healthReport(
+      workspaceId,
+      await this.checker(workspaceId, req),
+    );
   }
 
   /** Eksport całej dokumentacji do jednego pliku HTML (read-only). */
   @Get('export.html')
-  async exportHtml(@Param('id') workspaceId: string, @Res() res: Response) {
-    const html = await this.documentsService.exportHtml(workspaceId);
+  async exportHtml(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Res() res: Response,
+  ) {
+    const html = await this.documentsService.exportHtml(
+      workspaceId,
+      await this.checker(workspaceId, req),
+    );
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   }
 
   /** Eksport wielostronicowy — ZIP ze statycznym site (read-only). */
   @Get('export.zip')
-  async exportZip(@Param('id') workspaceId: string, @Res() res: Response) {
-    const buffer = await this.documentsService.exportZip(workspaceId);
+  async exportZip(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.documentsService.exportZip(
+      workspaceId,
+      await this.checker(workspaceId, req),
+    );
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader(
       'Content-Disposition',
@@ -473,9 +542,13 @@ export class DocumentsController {
   @Get('export/source.zip')
   async exportSourceZip(
     @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
     @Res() res: Response,
   ) {
-    const buffer = await this.documentsService.exportSourceZip(workspaceId);
+    const buffer = await this.documentsService.exportSourceZip(
+      workspaceId,
+      await this.checker(workspaceId, req),
+    );
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader(
       'Content-Disposition',
@@ -508,8 +581,16 @@ export class DocumentsController {
 
   /** Atom feed ostatnio zmienionych dokumentów. */
   @Get('feed.atom')
-  async feed(@Param('id') workspaceId: string, @Res() res: Response) {
-    const items = await this.documentsService.recent(workspaceId, 30);
+  async feed(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Res() res: Response,
+  ) {
+    const items = await this.documentsService.recent(
+      workspaceId,
+      30,
+      await this.checker(workspaceId, req),
+    );
     const appUrl = (
       this.config.get<string>('appUrl') ?? 'http://localhost:3002'
     ).replace(/\/+$/, '');
@@ -596,22 +677,36 @@ ${entries}
   }
 
   @Get('search')
-  search(@Param('id') workspaceId: string, @Query('q') q: string) {
+  async search(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Query('q') q: string,
+  ) {
     if (!q || typeof q !== 'string') {
       throw new BadRequestException('Query param "q" must be a string');
     }
-    return this.documentsService.search(workspaceId, q);
+    return this.documentsService.search(
+      workspaceId,
+      q,
+      await this.checker(workspaceId, req),
+    );
   }
 
   @Get('by-path')
   async getByPath(
     @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
     @Query('path') path: string,
   ) {
     // Wymuszamy string — query param może przyjść jako obiekt/tablica
     // (np. ?path[$ne]=), co byłoby wektorem NoSQL injection.
     if (!path || typeof path !== 'string') {
       throw new BadRequestException('Query param "path" must be a string');
+    }
+    // Ukryte dokumenty → 404 (nie ujawniamy istnienia).
+    const check = await this.checker(workspaceId, req);
+    if (check(path) === 'none') {
+      throw new NotFoundException('Document not found');
     }
     const doc = await this.documentsService.getByPath(workspaceId, path);
     return this.toFull(doc);

@@ -16,6 +16,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { MediaModule } from './media/media.module';
 import { MailerModule } from './common/mailer/mailer.module';
 import { NotificationPreferencesModule } from './notification-preferences/notification-preferences.module';
+import { AccessModule } from './access/access.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
 @Module({
@@ -46,6 +47,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
     }),
     MailerModule,
     NotificationPreferencesModule,
+    AccessModule,
     HealthModule,
     AuthModule,
     UsersModule,
