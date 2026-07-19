@@ -327,11 +327,13 @@ export class DocumentsController {
     @Req() req: RequestWithWorkspace,
   ) {
     const source = await this.workspacesService.getSource(workspaceId);
+    const token = await this.workspacesService.getImportToken(workspaceId);
     const updatedBy = req.authType === 'jwt' ? req.user.userId : null;
     const result = await this.documentsService.indexSource(
       workspaceId,
       source,
       updatedBy,
+      token,
     );
     await this.workspacesService.markIndexed(workspaceId);
     return result;

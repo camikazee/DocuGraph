@@ -816,6 +816,7 @@ export class DocumentsService {
       root?: string;
     } | null,
     updatedBy: string | null,
+    token?: string | null,
   ): Promise<{ imported: number; total: number }> {
     if (!source || source.provider !== 'github' || !source.repo) {
       throw new BadRequestException('Configure a GitHub repository first');
@@ -827,24 +828,28 @@ export class DocumentsService {
     const branch = source.branch || 'main';
     const root = (source.root || '').replace(/^\/+|\/+$/g, '');
 
+    // Z tokenem autoryzujemy API (prywatne repo); bez tokenu — publiczne.
+    const ghHeaders: Record<string, string> = {
+      'User-Agent': 'docugraph',
+      Accept: 'application/vnd.github+json',
+    };
+    if (token) ghHeaders.Authorization = `Bearer ${token}`;
+
     const treeRes = await fetch(
       `https://api.github.com/repos/${repo}/git/trees/${encodeURIComponent(
         branch,
       )}?recursive=1`,
-      {
-        headers: {
-          'User-Agent': 'docugraph',
-          Accept: 'application/vnd.github+json',
-        },
-      },
+      { headers: ghHeaders },
     );
     if (!treeRes.ok) {
       throw new BadRequestException(
-        'Could not read repository — must be public; check owner/repo and branch',
+        token
+          ? 'Could not read repository — check owner/repo, branch and token scope'
+          : 'Could not read repository — must be public (add a token for private); check owner/repo and branch',
       );
     }
     const data = (await treeRes.json()) as {
-      tree?: { path: string; type: string }[];
+      tree?: { path: string; type: string; sha: string }[];
     };
     const files = (data.tree ?? []).filter(
       (t) =>
@@ -854,15 +859,11 @@ export class DocumentsService {
     );
 
     let imported = 0;
-    for (const f of files.slice(0, 300)) {
-      const rawRes = await fetch(
-        `https://raw.githubusercontent.com/${repo}/${branch}/${f.path
-          .split('/')
-          .map(encodeURIComponent)
-          .join('/')}`,
-      );
-      if (!rawRes.ok) continue;
-      const content = await rawRes.text();
+    for (const f of files.slice(0, 2000)) {
+      const content = token
+        ? await this.fetchBlob(repo, f.sha, ghHeaders)
+        : await this.fetchRaw(repo, branch, f.path);
+      if (content === null) continue;
       const filePath = root ? f.path.slice(root.length + 1) : f.path;
       if (!filePath || !filePath.toLowerCase().endsWith('.md')) continue;
       try {
@@ -879,6 +880,40 @@ export class DocumentsService {
       }
     }
     return { imported, total: files.length };
+  }
+
+  /** Treść pliku z publicznego repo (raw.githubusercontent). */
+  private async fetchRaw(
+    repo: string,
+    branch: string,
+    filePath: string,
+  ): Promise<string | null> {
+    const res = await fetch(
+      `https://raw.githubusercontent.com/${repo}/${branch}/${filePath
+        .split('/')
+        .map(encodeURIComponent)
+        .join('/')}`,
+    );
+    return res.ok ? res.text() : null;
+  }
+
+  /** Treść pliku z prywatnego repo przez git blobs API (base64 → utf8). */
+  private async fetchBlob(
+    repo: string,
+    sha: string,
+    headers: Record<string, string>,
+  ): Promise<string | null> {
+    const res = await fetch(
+      `https://api.github.com/repos/${repo}/git/blobs/${sha}`,
+      { headers },
+    );
+    if (!res.ok) return null;
+    const blob = (await res.json()) as { content?: string; encoding?: string };
+    if (!blob.content) return null;
+    return Buffer.from(
+      blob.content,
+      blob.encoding === 'base64' ? 'base64' : 'utf8',
+    ).toString('utf8');
   }
 
   // ---- Broken-link report + autofix (Algorytm B) ----

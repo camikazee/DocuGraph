@@ -43,4 +43,10 @@ export class SourceDto {
   @IsString()
   @MaxLength(500)
   pushRemote?: string;
+
+  /** Token (GitHub PAT) do importu z prywatnego repo. Pusty = wyczyść. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  token?: string;
 }

@@ -64,11 +64,13 @@ export class WebhooksController {
     // Sygnatura jest poprawna — potwierdzamy odbiór (2xx) niezależnie od wyniku
     // reindeksu, by nieosiągalny GitHub API nie wywołał lawiny ponownych dostaw.
     const source = await this.workspacesService.getSource(workspaceId);
+    const token = await this.workspacesService.getImportToken(workspaceId);
     try {
       const result = await this.documentsService.indexSource(
         workspaceId,
         source,
         null,
+        token,
       );
       await this.workspacesService.markIndexed(workspaceId);
       return { ok: true, reindexed: true, ...result };

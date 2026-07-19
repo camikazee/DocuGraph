@@ -39,6 +39,13 @@ export class WorkspaceSource {
   @Prop({ type: String, default: null })
   pushRemote: string | null;
 
+  /**
+   * Token do importu z prywatnego repo (GitHub PAT). Zaszyfrowany (AES-256-GCM).
+   * Nigdy nie wraca w getSource (tylko flaga `tokenConfigured`).
+   */
+  @Prop({ type: String, default: null })
+  importToken: string | null;
+
   @Prop({ type: Date, default: null })
   lastIndexedAt: Date | null;
 }

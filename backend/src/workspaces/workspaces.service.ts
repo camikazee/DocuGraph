@@ -244,6 +244,7 @@ export class WorkspacesService {
           enforceTemplates?: boolean;
           lastIndexedAt?: Date | null;
           pushRemote?: string | null;
+          importToken?: string | null;
         }
       | undefined;
     if (!s) return null;
@@ -256,8 +257,9 @@ export class WorkspacesService {
       bidirectional: !!s.bidirectional,
       enforceTemplates: !!s.enforceTemplates,
       lastIndexedAt: s.lastIndexedAt ?? null,
-      // Sekrety (webhookSecret, pushRemote) nigdy nie wracają — tylko flaga.
+      // Sekrety (webhookSecret, pushRemote, importToken) nigdy nie wracają.
       pushConfigured: !!s.pushRemote,
+      tokenConfigured: !!s.importToken,
     };
   }
 
@@ -272,6 +274,7 @@ export class WorkspacesService {
       bidirectional: boolean;
       enforceTemplates: boolean;
       pushRemote: string;
+      token: string;
     }>,
   ) {
     // Aktualizacja per-pole (zachowuje webhookSecret i lastIndexedAt).
@@ -295,6 +298,11 @@ export class WorkspacesService {
         : null;
     }
 
+    // Token importu prywatnego repo — szyfrujemy; pusty = wyczyść.
+    if (dto.token !== undefined) {
+      set['source.importToken'] = dto.token ? encryptSecret(dto.token) : null;
+    }
+
     // Po włączeniu webhooków generujemy sekret HMAC (raz; nie nadpisujemy).
     if (dto.realtimeWebhooks) {
       const secret = await this.getWebhookSecret(workspaceId);
@@ -316,6 +324,18 @@ export class WorkspacesService {
       .lean()
       .exec();
     const enc = (w?.source as { pushRemote?: string } | undefined)?.pushRemote;
+    return enc ? decryptSecret(enc) : null;
+  }
+
+  /** Odszyfrowany token importu (prywatne repo) — użycie wewnętrzne. */
+  async getImportToken(workspaceId: string): Promise<string | null> {
+    const w = await this.workspaceModel
+      .findById(workspaceId)
+      .select('source.importToken')
+      .lean()
+      .exec();
+    const enc = (w?.source as { importToken?: string } | undefined)
+      ?.importToken;
     return enc ? decryptSecret(enc) : null;
   }
 

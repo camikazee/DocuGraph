@@ -20,6 +20,7 @@ interface Source {
   enforceTemplates: boolean;
   lastIndexedAt: string | null;
   pushConfigured: boolean;
+  tokenConfigured: boolean;
 }
 
 function Toggle({
@@ -57,6 +58,8 @@ export default function ConnectPage() {
   const [repo, setRepo] = useState('');
   const [branch, setBranch] = useState('main');
   const [root, setRoot] = useState('');
+  const [importToken, setImportToken] = useState('');
+  const [tokenConfigured, setTokenConfigured] = useState(false);
   const [webhooks, setWebhooks] = useState(false);
   const [bidirectional, setBidirectional] = useState(false);
   const [templates, setTemplates] = useState(false);
@@ -94,6 +97,7 @@ export default function ConnectPage() {
         setTemplates(s.enforceTemplates);
         setLastIndexed(s.lastIndexedAt);
         setPushConfigured(s.pushConfigured);
+        setTokenConfigured(s.tokenConfigured);
         if (s.realtimeWebhooks) void loadWebhookConfig();
       })
       .catch(() => {});
@@ -185,8 +189,14 @@ export default function ConnectPage() {
           realtimeWebhooks: webhooks,
           bidirectional,
           enforceTemplates: templates,
+          // Only send the token when the user typed one (keeps existing).
+          ...(importToken.trim() ? { token: importToken.trim() } : {}),
         }),
       });
+      if (importToken.trim()) {
+        setTokenConfigured(true);
+        setImportToken('');
+      }
       const res = await apiFetch<{ imported: number; total: number }>(
         `/workspaces/${ws}/documents/source/index`,
         { method: 'POST' },
@@ -255,6 +265,21 @@ export default function ConnectPage() {
             onChange={setRoot}
             placeholder="docs"
           />
+        </div>
+        <div className="mt-3">
+          <Input
+            label="Access token (private repositories only)"
+            type="password"
+            value={importToken}
+            onChange={setImportToken}
+            placeholder={
+              tokenConfigured ? '•••••••• (saved — leave blank to keep)' : 'ghp_… GitHub personal access token'
+            }
+            autoComplete="off"
+          />
+          <p className="mt-1 text-[11px] text-fg3">
+            Stored encrypted, never shown again. Needed only for private repos.
+          </p>
         </div>
       </Section>
 

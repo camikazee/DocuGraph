@@ -102,7 +102,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **Source download (raw `.md` ZIP)** — `GET /documents/export/source.zip` returns all docs as raw Markdown with folders preserved (distinct from the rendered site ZIP)
 - [x] **ZIP import** — `POST /documents/import.zip` expands a `.md` tree into the workspace (paths preserved, non-md ignored, invalid zip rejected)
 - [x] **Local directory upload** — pick a folder from disk (`webkitdirectory`) on the documents page; each `.md` is uploaded preserving the tree (top folder stripped)
-- [ ] **Private Git import** — token auth + drop the 300-file cap (extends the current public-GitHub indexing). *(medium)*
+- [x] **Private Git import** — optional GitHub token (stored AES-encrypted like other secrets, never returned — only `tokenConfigured`) enables importing private repos via the git blobs API; file cap raised 300→2000. Token config + no-leak covered by e2e (the private GitHub fetch itself needs a real private repo to verify live)
 - [ ] **Per-resource access control** — per-folder / per-path permissions on top of workspace RBAC (Owner/Editor/Viewer already enforced). *(large)*
 
 ## 🎯 Milestone 7 — Public demo showcase (do last)
