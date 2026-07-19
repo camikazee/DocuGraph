@@ -54,7 +54,13 @@ describe('Slack OAuth (e2e)', () => {
     await app?.close();
   });
 
-  it('callback tworzy nowego usera z workspace i zwraca JWT', async () => {
+  /** Callback przekierowuje do frontendu z JWT w fragmencie URL — wyłuskaj go. */
+  function tokenFromRedirect(location: string): string {
+    const hash = location.split('#')[1] ?? '';
+    return new URLSearchParams(hash).get('token') ?? '';
+  }
+
+  it('callback tworzy nowego usera z workspace i przekierowuje z JWT', async () => {
     fakeProfile = {
       providerUserId: 'slack-1',
       email: 'slacker@example.com',
@@ -65,14 +71,15 @@ describe('Slack OAuth (e2e)', () => {
 
     const res = await request(app.getHttpServer())
       .get('/api/v1/auth/slack/callback')
-      .expect(200);
-    expect(res.body.accessToken).toEqual(expect.any(String));
-    expect(res.body.user.email).toBe('slacker@example.com');
+      .expect(302);
+    const token = tokenFromRedirect(res.headers.location as string);
+    expect(token).not.toBe('');
 
     const me = await request(app.getHttpServer())
       .get('/api/v1/auth/me')
-      .set('Authorization', `Bearer ${res.body.accessToken as string}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(200);
+    expect(me.body.user.email).toBe('slacker@example.com');
     expect(me.body.workspaces).toHaveLength(1);
     expect(me.body.workspaces[0].role).toBe('owner');
   });
@@ -97,11 +104,14 @@ describe('Slack OAuth (e2e)', () => {
 
     const gh = await request(app.getHttpServer())
       .get('/api/v1/auth/slack/callback')
-      .expect(200);
+      .expect(302);
 
     const me = await request(app.getHttpServer())
       .get('/api/v1/auth/me')
-      .set('Authorization', `Bearer ${gh.body.accessToken as string}`)
+      .set(
+        'Authorization',
+        `Bearer ${tokenFromRedirect(gh.headers.location as string)}`,
+      )
       .expect(200);
     expect(me.body.workspaces).toHaveLength(1);
 

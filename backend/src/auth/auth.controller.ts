@@ -6,9 +6,11 @@ import {
   Patch,
   Post,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/interfaces/jwt-payload.interface';
@@ -32,7 +34,25 @@ const AUTH_THROTTLE = {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
+
+  /**
+   * Po udanym OAuth przekierowuje do frontendu z tokenem w fragmencie URL
+   * (fragment nie trafia do logów serwera ani nagłówka Referer). `next` niesie
+   * OAuth `state` — sanityzowany po stronie frontu (tylko ścieżki wewnętrzne).
+   */
+  private redirectWithToken(req: Request, res: Response, token: string): void {
+    const appUrl = (
+      this.config.get<string>('appUrl') ?? 'http://localhost:3001'
+    ).replace(/\/+$/, '');
+    const frag = new URLSearchParams({ token });
+    const state = req.query.state;
+    if (typeof state === 'string' && state) frag.set('next', state);
+    res.redirect(`${appUrl}/oauth#${frag.toString()}`);
+  }
 
   @Post('register')
   @Throttle({ default: AUTH_THROTTLE })
@@ -69,8 +89,12 @@ export class AuthController {
 
   @Get('github/callback')
   @UseGuards(GithubAuthGuard)
-  githubCallback(@Req() req: Request) {
-    return this.authService.loginWithOAuth('github', req.user as OAuthProfile);
+  async githubCallback(@Req() req: Request, @Res() res: Response) {
+    const { accessToken } = await this.authService.loginWithOAuth(
+      'github',
+      req.user as OAuthProfile,
+    );
+    this.redirectWithToken(req, res, accessToken);
   }
 
   // --- Slack OAuth ---
@@ -82,8 +106,12 @@ export class AuthController {
 
   @Get('slack/callback')
   @UseGuards(SlackAuthGuard)
-  slackCallback(@Req() req: Request) {
-    return this.authService.loginWithOAuth('slack', req.user as OAuthProfile);
+  async slackCallback(@Req() req: Request, @Res() res: Response) {
+    const { accessToken } = await this.authService.loginWithOAuth(
+      'slack',
+      req.user as OAuthProfile,
+    );
+    this.redirectWithToken(req, res, accessToken);
   }
 
   @Get('me')

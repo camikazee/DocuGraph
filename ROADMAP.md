@@ -10,6 +10,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ### Core
 - [x] Auth: email/password (JWT), GitHub & Slack OAuth, password reset (SMTP)
 - [x] Transactional email from a shared branded template — password reset, watch notifications, daily digest, and **workspace invitations** (invite email with an accept link + `/invite` acceptance flow); log-only without SMTP
+- [x] OAuth completes in the browser: GitHub/Slack callback redirects to the frontend with the token (in the URL fragment) and preserves a post-login `next` target via OAuth `state` — so an emailed invite is accepted whether the invitee signs in with email or OAuth
 - [x] Workspaces, members, invitations, roles (Owner / Editor / Viewer)
 - [x] Documents as Markdown-as-code: two-phase save (disk = source of truth + Mongo index)
 - [x] Revision history with per-revision diff (+/- line counts)

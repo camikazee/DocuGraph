@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiBaseUrl, apiFetch, ApiError } from '@/lib/api';
@@ -39,6 +39,16 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   const next = safeNext(params.get('next'));
   const withNext = (base: string) =>
     next === '/dashboard' ? base : `${base}?next=${encodeURIComponent(next)}`;
+  // OAuth: dołącz `next` do adresu logowania providera (wróci przez state).
+  const oauthUrl = (provider: 'github' | 'slack') =>
+    next === '/dashboard'
+      ? `${apiBaseUrl}/auth/${provider}/login`
+      : `${apiBaseUrl}/auth/${provider}/login?next=${encodeURIComponent(next)}`;
+
+  const oauthError = params.get('error') === 'oauth';
+  useEffect(() => {
+    if (oauthError) toast('Could not sign in with that provider', 'error');
+  }, [oauthError, toast]);
 
   const [name, setName] = useState('');
   // Logowanie wstępnie wypełnione kontem demo (ułatwia podgląd).
@@ -116,14 +126,14 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
         <div className="grid gap-2">
           <Button
             variant="secondary"
-            href={`${apiBaseUrl}/auth/github/login`}
+            href={oauthUrl('github')}
             className="w-full"
           >
             <GithubIcon /> Continue with GitHub
           </Button>
           <Button
             variant="secondary"
-            href={`${apiBaseUrl}/auth/slack/login`}
+            href={oauthUrl('slack')}
             className="w-full"
           >
             <SlackIcon /> Continue with Slack

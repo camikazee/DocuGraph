@@ -55,7 +55,13 @@ describe('GitHub OAuth (e2e)', () => {
     await app?.close();
   });
 
-  it('callback tworzy nowego usera z workspace i zwraca JWT', async () => {
+  /** Callback przekierowuje do frontendu z JWT w fragmencie URL — wyłuskaj go. */
+  function tokenFromRedirect(location: string): string {
+    const hash = location.split('#')[1] ?? '';
+    return new URLSearchParams(hash).get('token') ?? '';
+  }
+
+  it('callback tworzy nowego usera z workspace i przekierowuje z JWT', async () => {
     fakeProfile = {
       providerUserId: 'gh-1',
       email: 'octocat@example.com',
@@ -66,17 +72,38 @@ describe('GitHub OAuth (e2e)', () => {
 
     const res = await request(app.getHttpServer())
       .get('/api/v1/auth/github/callback')
-      .expect(200);
+      .expect(302);
 
-    expect(res.body.accessToken).toEqual(expect.any(String));
-    expect(res.body.user.email).toBe('octocat@example.com');
+    const token = tokenFromRedirect(res.headers.location as string);
+    expect(token).not.toBe('');
 
     const me = await request(app.getHttpServer())
       .get('/api/v1/auth/me')
-      .set('Authorization', `Bearer ${res.body.accessToken as string}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(200);
+    expect(me.body.user.email).toBe('octocat@example.com');
     expect(me.body.workspaces).toHaveLength(1);
     expect(me.body.workspaces[0].role).toBe('owner');
+  });
+
+  it('przekazuje `next` przez OAuth state do frontendu', async () => {
+    fakeProfile = {
+      providerUserId: 'gh-3',
+      email: 'stateful@example.com',
+      name: 'Stateful',
+      username: 'stateful',
+      avatarUrl: null,
+    };
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/auth/github/callback')
+      .query({ state: '/invite?token=abc' })
+      .expect(302);
+
+    const loc = res.headers.location as string;
+    expect(loc).toContain('/oauth#');
+    expect(tokenFromRedirect(loc)).not.toBe('');
+    expect(loc).toContain('next=');
   });
 
   it('scala z istniejącym kontem e-mail/hasło (bez duplikatu)', async () => {
@@ -101,11 +128,14 @@ describe('GitHub OAuth (e2e)', () => {
 
     const gh = await request(app.getHttpServer())
       .get('/api/v1/auth/github/callback')
-      .expect(200);
+      .expect(302);
 
     const me = await request(app.getHttpServer())
       .get('/api/v1/auth/me')
-      .set('Authorization', `Bearer ${gh.body.accessToken as string}`)
+      .set(
+        'Authorization',
+        `Bearer ${tokenFromRedirect(gh.headers.location as string)}`,
+      )
       .expect(200);
 
     // Nadal jeden workspace — konto zostało scalone, nie zduplikowane.
