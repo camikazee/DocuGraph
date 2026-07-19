@@ -28,6 +28,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { FixBrokenLinkDto } from './dto/fix-broken-link.dto';
 import { SourceDto } from './dto/source.dto';
 import { AddCommentDto, ResolveCommentDto } from './dto/comment.dto';
+import { SetReviewStatusDto } from './dto/review-status.dto';
 import { MoveDocumentDto } from './dto/move-document.dto';
 import { ReadEventDto, WatchDto } from './dto/telemetry.dto';
 import { PublishDto } from './dto/publish.dto';
@@ -329,6 +330,38 @@ export class DocumentsController {
       dto.path,
       dto.line,
       dto.resolved,
+    );
+  }
+
+  @Get('review-status')
+  async reviewStatus(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Query('path') path: string,
+  ) {
+    if (!path || typeof path !== 'string') {
+      throw new BadRequestException('Query param "path" must be a string');
+    }
+    const check = await this.checker(workspaceId, req);
+    if (check(path) === 'none') {
+      throw new NotFoundException('Document not found');
+    }
+    return this.documentsService.getReviewStatus(workspaceId, path);
+  }
+
+  @Post('review-status')
+  async setReviewStatus(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: SetReviewStatusDto,
+  ) {
+    // Recenzja to akcja zapisu na ścieżce — wymaga prawa write (i uszanuje ACL).
+    await this.assertCanWrite(workspaceId, req, dto.path);
+    return this.documentsService.setReviewStatus(
+      workspaceId,
+      dto.path,
+      dto.status,
+      this.actorOf(req),
     );
   }
 

@@ -18,6 +18,11 @@ import { Event, EventDocument } from './schemas/event.schema';
 import { Watch, WatchDocument } from './schemas/watch.schema';
 import { Favorite, FavoriteDocument } from './schemas/favorite.schema';
 import {
+  ReviewState,
+  ReviewStatus,
+  ReviewStatusDocument,
+} from './schemas/review-status.schema';
+import {
   Notification,
   NotificationDocument,
 } from './schemas/notification.schema';
@@ -46,6 +51,8 @@ export class DocumentsService {
     private readonly watchModel: Model<WatchDocument>,
     @InjectModel(Favorite.name)
     private readonly favoriteModel: Model<FavoriteDocument>,
+    @InjectModel(ReviewStatus.name)
+    private readonly reviewModel: Model<ReviewStatusDocument>,
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<NotificationDocument>,
     private readonly storage: WorkspaceStorageService,
@@ -312,6 +319,63 @@ export class DocumentsService {
       { $set: { resolved } },
     );
     return this.listComments(workspaceId, filePath);
+  }
+
+  /** Bieżący stan recenzji pliku. Brak rekordu → „in_review". */
+  async getReviewStatus(workspaceId: string, filePath: string) {
+    const rec = await this.reviewModel
+      .findOne({ workspaceId, filePath })
+      .populate<{ reviewedBy: UserDocument | null }>('reviewedBy', 'name')
+      .exec();
+    if (!rec) {
+      return { status: 'in_review' as const, by: null, at: null };
+    }
+    return {
+      status: rec.status,
+      by: rec.reviewedBy ? rec.reviewedBy.name : null,
+      at: rec.get('updatedAt') as Date,
+    };
+  }
+
+  /**
+   * Ustawia stan recenzji. `in_review` kasuje rekord (reset do domyślnego).
+   * Obserwujący dostają powiadomienie 'review' (poza samym recenzentem).
+   */
+  async setReviewStatus(
+    workspaceId: string,
+    filePath: string,
+    status: ReviewState | 'in_review',
+    actorId: string | null,
+  ) {
+    if (status === 'in_review') {
+      await this.reviewModel.deleteOne({ workspaceId, filePath });
+      return this.getReviewStatus(workspaceId, filePath);
+    }
+
+    await this.reviewModel.updateOne(
+      { workspaceId, filePath },
+      {
+        $set: {
+          status,
+          reviewedBy: actorId ? new Types.ObjectId(actorId) : null,
+        },
+      },
+      { upsert: true },
+    );
+
+    const doc = await this.documentModel
+      .findOne({ workspaceId, filePath })
+      .select('title')
+      .lean()
+      .exec();
+    const docTitle = doc?.title || filePath;
+    const title =
+      status === 'approved'
+        ? `Approved: ${docTitle}`
+        : `Changes requested: ${docTitle}`;
+    await this.notifyWatchers(workspaceId, filePath, title, actorId, 'review');
+
+    return this.getReviewStatus(workspaceId, filePath);
   }
 
   /**

@@ -11,6 +11,10 @@ import { Event, EventSchema } from './schemas/event.schema';
 import { Watch, WatchSchema } from './schemas/watch.schema';
 import { Favorite, FavoriteSchema } from './schemas/favorite.schema';
 import {
+  ReviewStatus,
+  ReviewStatusSchema,
+} from './schemas/review-status.schema';
+import {
   Notification,
   NotificationSchema,
 } from './schemas/notification.schema';
@@ -37,6 +41,7 @@ import { AccessModule } from '../access/access.module';
       { name: Event.name, schema: EventSchema },
       { name: Watch.name, schema: WatchSchema },
       { name: Favorite.name, schema: FavoriteSchema },
+      { name: ReviewStatus.name, schema: ReviewStatusSchema },
       { name: Notification.name, schema: NotificationSchema },
     ]),
     AuthModule, // JwtService (dla CombinedAuthGuard)

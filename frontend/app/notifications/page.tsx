@@ -255,6 +255,7 @@ export default function NotificationsPage() {
             { k: 'changed', label: 'Changes' },
             { k: 'moved', label: 'Moves' },
             { k: 'comment', label: 'Comments' },
+            { k: 'review', label: 'Reviews' },
           ].map(({ k, label }) => {
             const on = muted !== null && !muted.includes(k);
             return (

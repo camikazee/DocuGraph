@@ -56,7 +56,20 @@ function ReviewContent() {
   const [draftMentions, setDraftMentions] = useState<string[]>([]);
   const [members, setMembers] = useState<MentionMember[]>([]);
   const [replies, setReplies] = useState<Record<number, string>>({});
-  const [approved, setApproved] = useState(false);
+
+  type ReviewState = 'in_review' | 'approved' | 'changes_requested';
+  interface Review {
+    status: ReviewState;
+    by: string | null;
+    at: string | null;
+  }
+  const [review, setReview] = useState<Review>({
+    status: 'in_review',
+    by: null,
+    at: null,
+  });
+  const role = profile?.workspaces[0]?.role;
+  const canReview = role === 'owner' || role === 'editor';
 
   useEffect(() => {
     if (!ws) return;
@@ -80,8 +93,38 @@ function ReviewContent() {
     )
       .then((d) => setContent(d.contentRaw))
       .catch(() => setContent(''));
+    apiFetch<Review>(
+      `/workspaces/${ws}/documents/review-status?path=${encodeURIComponent(path)}`,
+    )
+      .then(setReview)
+      .catch(() => setReview({ status: 'in_review', by: null, at: null }));
     void loadComments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws, path, loadComments]);
+
+  async function setStatus(status: ReviewState) {
+    if (!ws) return;
+    try {
+      const next = await apiFetch<Review>(
+        `/workspaces/${ws}/documents/review-status`,
+        { method: 'POST', body: JSON.stringify({ path, status }) },
+      );
+      setReview(next);
+      toast(
+        status === 'approved'
+          ? 'Document approved'
+          : status === 'changes_requested'
+            ? 'Changes requested — watchers notified'
+            : 'Reopened for review',
+        'success',
+      );
+    } catch (err) {
+      toast(
+        err instanceof ApiError ? err.message : 'Could not update review',
+        'error',
+      );
+    }
+  }
 
   const blocks = useMemo(() => {
     const body = content.replace(/^---\n[\s\S]*?\n---\n?/, '');
@@ -156,39 +199,74 @@ function ReviewContent() {
         <span
           className={cn(
             'rounded-md border px-2 py-0.5 text-[11px] font-semibold',
-            approved
+            review.status === 'approved'
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-              : 'border-capbd bg-accsoft text-accfg',
+              : review.status === 'changes_requested'
+                ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                : 'border-capbd bg-accsoft text-accfg',
           )}
+          title={
+            review.by && review.at
+              ? `${review.by} · ${relTime(review.at)}`
+              : undefined
+          }
         >
-          {approved ? 'Approved' : 'In review'}
+          {review.status === 'approved'
+            ? 'Approved'
+            : review.status === 'changes_requested'
+              ? 'Changes requested'
+              : 'In review'}
         </span>
+        {review.by && (
+          <span className="text-[12px] text-fg3">
+            by {review.by} · {review.at ? relTime(review.at) : ''}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-2.5">
           <ThemeSwitcher />
-          <button
-            onClick={() => setApproved(false)}
-            className="rounded-lg border border-red-500/35 px-3 py-2 text-[13px] font-medium text-red-400 transition hover:bg-red-500/10"
-          >
-            Request changes
-          </button>
-          <button
-            onClick={() => {
-              if (openCount === 0) {
-                setApproved(true);
-                toast('Document approved', 'success');
-              }
-            }}
-            disabled={openCount > 0}
-            className={cn(
-              'flex items-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white transition',
-              openCount > 0 ? 'cursor-not-allowed bg-muted' : 'bg-emerald-600 hover:opacity-90',
-            )}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8.5l3 3 7-7" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {approved ? 'Approved' : openCount > 0 ? `Approve (${openCount} open)` : 'Approve'}
-          </button>
+          {canReview && (
+            <>
+              {review.status !== 'in_review' && (
+                <button
+                  onClick={() => setStatus('in_review')}
+                  className="rounded-lg border border-capbd bg-capbg px-3 py-2 text-[13px] font-medium text-fg2 transition hover:border-acc"
+                >
+                  Reopen
+                </button>
+              )}
+              <button
+                onClick={() => setStatus('changes_requested')}
+                disabled={review.status === 'changes_requested'}
+                className="rounded-lg border border-red-500/35 px-3 py-2 text-[13px] font-medium text-red-400 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Request changes
+              </button>
+              <button
+                onClick={() => setStatus('approved')}
+                disabled={openCount > 0 || review.status === 'approved'}
+                title={
+                  openCount > 0
+                    ? 'Resolve all open threads before approving'
+                    : undefined
+                }
+                className={cn(
+                  'flex items-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white transition',
+                  openCount > 0 || review.status === 'approved'
+                    ? 'cursor-not-allowed bg-muted'
+                    : 'bg-emerald-600 hover:opacity-90',
+                )}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8.5l3 3 7-7" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {review.status === 'approved'
+                  ? 'Approved'
+                  : openCount > 0
+                    ? `Approve (${openCount} open)`
+                    : 'Approve'}
+              </button>
+            </>
+          )}
         </div>
       </header>
 

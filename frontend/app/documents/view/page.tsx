@@ -57,6 +57,18 @@ function ReaderContent() {
 
   const [isFav, setIsFav] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
+  const [reviewStatus, setReviewStatus] = useState<
+    'in_review' | 'approved' | 'changes_requested'
+  >('in_review');
+
+  useEffect(() => {
+    if (!ws || !path) return;
+    apiFetch<{ status: 'in_review' | 'approved' | 'changes_requested' }>(
+      `/workspaces/${ws}/documents/review-status?path=${encodeURIComponent(path)}`,
+    )
+      .then((r) => setReviewStatus(r.status))
+      .catch(() => setReviewStatus('in_review'));
+  }, [ws, path]);
 
   useEffect(() => {
     if (!ws || !path) return;
@@ -341,6 +353,21 @@ function ReaderContent() {
                     <path d="M2 3.5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1V10a1 1 0 0 1-1 1H6l-3 2.5V11H3a1 1 0 0 1-1-1V3.5Z" stroke="var(--accfg)" strokeWidth="1.3" strokeLinejoin="round" />
                   </svg>
                   Review
+                  {reviewStatus !== 'in_review' && (
+                    <span
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full',
+                        reviewStatus === 'approved'
+                          ? 'bg-emerald-400'
+                          : 'bg-red-400',
+                      )}
+                      title={
+                        reviewStatus === 'approved'
+                          ? 'Approved'
+                          : 'Changes requested'
+                      }
+                    />
+                  )}
                 </Link>
                 <Link
                   href={`/documents/edit?path=${encodeURIComponent(path)}`}
