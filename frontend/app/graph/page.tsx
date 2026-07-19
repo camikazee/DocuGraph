@@ -348,8 +348,31 @@ export default function GraphPage() {
               })}
             </svg>
           ) : (
-            <div className="grid h-[520px] place-items-center text-sm text-fg3">
-              {graph ? 'No documents to graph yet.' : 'Loading…'}
+            <div className="grid h-[520px] place-items-center px-6 text-center">
+              {graph ? (
+                <div className="flex max-w-[320px] flex-col items-center gap-2">
+                  <span className="grid h-11 w-11 place-items-center rounded-xl border border-line bg-capbg">
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                      <path d="M5.5 6l5 4M4 5.5a2 2 0 1 0 0-.1M12 4.5a1.5 1.5 0 1 0 0-.1M11 12a1.5 1.5 0 1 0 0-.1" stroke="var(--fg3)" strokeWidth="1.2" />
+                    </svg>
+                  </span>
+                  <div className="text-[13.5px] font-semibold text-fg">
+                    Nothing to graph yet
+                  </div>
+                  <p className="text-[12.5px] leading-relaxed text-fg3">
+                    The graph draws itself from links between your documents.
+                    Add a few docs that reference each other to see it come alive.
+                  </p>
+                  <Link
+                    href="/documents"
+                    className="mt-2 rounded-[9px] bg-acc px-[15px] py-[9px] text-[13px] font-semibold text-white transition hover:opacity-90"
+                  >
+                    Go to documents
+                  </Link>
+                </div>
+              ) : (
+                <span className="text-sm text-fg3">Loading…</span>
+              )}
             </div>
           )}
 

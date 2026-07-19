@@ -244,6 +244,9 @@ export default function DocumentsPage() {
     });
   }, [docs, filter, search, tagFilter, attention]);
 
+  // Rozróżnij „pusty workspace" (onboarding) od „filtr nic nie znalazł".
+  const firstRun = (docs?.length ?? 0) === 0;
+
   const allVisibleSelected =
     rows.length > 0 && rows.every((d) => selected.has(d.filePath));
   function toggleAll() {
@@ -605,8 +608,40 @@ export default function DocumentsPage() {
         <Loader
           loading={docs === null}
           empty={rows.length === 0}
-          emptyTitle="No documents match"
-          emptyMessage="Try a different search or status filter."
+          emptyTitle={
+            firstRun ? 'Your workspace is empty' : 'No documents match'
+          }
+          emptyMessage={
+            firstRun
+              ? 'Add your first Markdown doc, import a folder or a .zip, or connect a Git repository to sync docs automatically.'
+              : 'Try a different search or status filter.'
+          }
+          emptyAction={
+            firstRun ? (
+              <>
+                <Button
+                  onClick={() => {
+                    setShowForm(true);
+                    setAttention(false);
+                    setTagFilter(null);
+                    setFilter('all');
+                    setSearch('');
+                  }}
+                >
+                  New document
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => folderInputRef.current?.click()}
+                >
+                  Import folder
+                </Button>
+                <Button variant="secondary" href="/connect">
+                  Connect a repo
+                </Button>
+              </>
+            ) : undefined
+          }
           minHeight={220}
         >
           {rows.map((d) => {

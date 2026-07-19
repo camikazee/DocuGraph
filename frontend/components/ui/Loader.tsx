@@ -43,6 +43,8 @@ interface LoaderProps {
   /** Tytuł/komunikat pustego stanu. */
   emptyTitle?: string;
   emptyMessage?: string;
+  /** Opcjonalne akcje (CTA) w pustym stanie — np. „New document", „Import". */
+  emptyAction?: React.ReactNode;
   /** Minimalna wysokość obszaru stanów (żeby nie „skakał" układ). */
   minHeight?: number | string;
   className?: string;
@@ -65,6 +67,7 @@ export function Loader({
   skeleton,
   emptyTitle = 'Nothing here yet',
   emptyMessage,
+  emptyAction,
   minHeight = 160,
   className,
   children,
@@ -119,6 +122,11 @@ export function Loader({
           </span>
           <div className="text-[13.5px] font-semibold text-fg">{emptyTitle}</div>
           {emptyMessage && <p className="text-[12.5px] leading-relaxed text-fg3">{emptyMessage}</p>}
+          {emptyAction && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {emptyAction}
+            </div>
+          )}
         </div>
       </div>
     );
