@@ -1,6 +1,12 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MarkdownIt from 'markdown-it';
@@ -60,6 +66,91 @@ function EditorContent() {
   const [saving, setSaving] = useState(false);
   const [revisions, setRevisions] = useState<Revision[]>([]);
   const [commitMsg, setCommitMsg] = useState('');
+
+  // --- Link autocomplete (typing `](` suggests existing document paths) ---
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const caretRef = useRef<number | null>(null);
+  const [ac, setAc] = useState<{ query: string; start: number } | null>(null);
+  const [acIndex, setAcIndex] = useState(0);
+
+  const acMatches = useMemo(() => {
+    if (!ac) return [];
+    const q = ac.query.toLowerCase();
+    return docs
+      .filter((d) => d.filePath !== initialPath)
+      .filter(
+        (d) =>
+          !q ||
+          d.filePath.toLowerCase().includes(q) ||
+          d.title.toLowerCase().includes(q),
+      )
+      .slice(0, 8);
+  }, [ac, docs, initialPath]);
+
+  /** Wykryj trigger `](partial` tuż przed karetką i otwórz podpowiedzi. */
+  function refreshAutocomplete(value: string, caret: number) {
+    const before = value.slice(0, caret);
+    const m = before.match(/\]\(([^)\s\n]*)$/);
+    if (m) {
+      setAc({ query: m[1], start: caret - m[1].length });
+      setAcIndex(0);
+    } else if (ac) {
+      setAc(null);
+    }
+  }
+
+  function onEditorChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setContent(e.target.value);
+    refreshAutocomplete(e.target.value, e.target.selectionStart);
+  }
+
+  function insertPath(path: string) {
+    if (!ac) return;
+    const end = ac.start + ac.query.length;
+    const next = content.slice(0, ac.start) + path + content.slice(end);
+    caretRef.current = ac.start + path.length;
+    setContent(next);
+    setAc(null);
+  }
+
+  function onEditorKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (!ac || acMatches.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setAcIndex((i) => (i + 1) % acMatches.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setAcIndex((i) => (i - 1 + acMatches.length) % acMatches.length);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      insertPath(acMatches[acIndex].filePath);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setAc(null);
+    }
+  }
+
+  // Po programowej zmianie treści przywróć karetkę w policzonym miejscu.
+  useEffect(() => {
+    if (caretRef.current != null && taRef.current) {
+      const pos = caretRef.current;
+      caretRef.current = null;
+      taRef.current.focus();
+      taRef.current.setSelectionRange(pos, pos);
+    }
+  }, [content]);
+
+  /** Wstaw szablon front matter na górze, jeśli go jeszcze nie ma. */
+  function insertFrontmatter() {
+    if (/^---\r?\n/.test(content)) {
+      toast('This document already has front matter', 'error');
+      return;
+    }
+    const tpl = '---\ntitle: \ntags: []\nstatus: draft\n---\n\n';
+    caretRef.current = tpl.indexOf('title: ') + 'title: '.length;
+    setContent(tpl + content);
+    setSeg('split');
+  }
 
   async function loadRevisions() {
     if (!ws || !initialPath) return;
@@ -237,6 +328,16 @@ function EditorContent() {
           </span>
 
           <div className="ml-auto flex items-center gap-2.5">
+            <button
+              onClick={insertFrontmatter}
+              title="Insert a front matter block (title, tags, status)"
+              className="hidden items-center gap-1.5 rounded-[9px] border border-capbd bg-capbg px-2.5 py-1.5 text-[12px] font-semibold text-fg2 transition hover:border-acc sm:flex"
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M2.5 3.5h11M2.5 6.5h11M4 9.5h8M4 12.5h5" stroke="var(--accfg)" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+              Frontmatter
+            </button>
             <ThemeSwitcher />
             {/* segment control */}
             <div className="flex items-center gap-1 rounded-[9px] border border-line bg-card p-[3px]">
@@ -277,13 +378,50 @@ function EditorContent() {
                   {lineCount} lines · UTF-8
                 </span>
               </div>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="# Title&#10;&#10;Write Markdown…"
-                spellCheck={false}
-                className="min-h-0 flex-1 resize-none bg-transparent p-4 font-mono text-[13px] leading-[21px] text-fg2 outline-none placeholder:text-fg3"
-              />
+              <div className="relative min-h-0 flex-1">
+                <textarea
+                  ref={taRef}
+                  value={content}
+                  onChange={onEditorChange}
+                  onKeyDown={onEditorKeyDown}
+                  onClick={(e) =>
+                    refreshAutocomplete(
+                      e.currentTarget.value,
+                      e.currentTarget.selectionStart,
+                    )
+                  }
+                  onBlur={() => setTimeout(() => setAc(null), 120)}
+                  placeholder="# Title&#10;&#10;Write Markdown…  (type ]( to link a document)"
+                  spellCheck={false}
+                  className="absolute inset-0 resize-none bg-transparent p-4 font-mono text-[13px] leading-[21px] text-fg2 outline-none placeholder:text-fg3"
+                />
+                {ac && acMatches.length > 0 && (
+                  <div className="absolute bottom-3 left-3 z-10 w-[min(420px,90%)] overflow-hidden rounded-[10px] border border-line bg-card shadow-2xl">
+                    <div className="border-b border-line2 px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted">
+                      Link a document · ↑↓ Enter · Esc
+                    </div>
+                    {acMatches.map((d, i) => (
+                      <button
+                        key={d.filePath}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          insertPath(d.filePath);
+                        }}
+                        onMouseEnter={() => setAcIndex(i)}
+                        className={cn(
+                          'flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left transition',
+                          i === acIndex ? 'bg-accsoft' : 'hover:bg-rowhover',
+                        )}
+                      >
+                        <span className="text-[12.5px] text-fg2">{d.title}</span>
+                        <span className="truncate font-mono text-[11px] text-fg3">
+                          {d.filePath}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </section>
           )}
 
