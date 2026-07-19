@@ -197,6 +197,29 @@ export default function GraphPage() {
   ];
   const vb = `${(W - W / zoom) / 2} ${(H - H / zoom) / 2} ${W / zoom} ${H / zoom}`;
 
+  // --- Perf: viewport culling (virtualization) + label culling for big graphs.
+  const CULL_MARGIN = 60;
+  const LABEL_LIMIT = 140; // powyżej tylu widocznych węzłów etykiety tylko dla hubów/hover/wyszukania
+  const HUB_DEG = 6;
+  const vx0 = (W - W / zoom) / 2;
+  const vy0 = (H - H / zoom) / 2;
+  const vw = W / zoom;
+  const vh = H / zoom;
+  const inView = (p: { x: number; y: number }) =>
+    p.x >= vx0 - CULL_MARGIN &&
+    p.x <= vx0 + vw + CULL_MARGIN &&
+    p.y >= vy0 - CULL_MARGIN &&
+    p.y <= vy0 + vh + CULL_MARGIN;
+  const visibleCount =
+    graph && model
+      ? graph.nodes.reduce((c, nd) => {
+          const p = model.pos[nd.filePath];
+          return c + (p && inView(p) ? 1 : 0);
+        }, 0)
+      : 0;
+  const showAllLabels = visibleCount <= LABEL_LIMIT;
+  const totalNodes = graph?.nodes.length ?? 0;
+
   return (
     <AppShell>
       <div className="mb-5 flex items-center gap-4">
@@ -265,6 +288,7 @@ export default function GraphPage() {
                 const a = model?.pos[e.from];
                 const b = model?.pos[e.to];
                 if (!a || !b) return null;
+                if (!inView(a) && !inView(b)) return null; // poza kadrem
                 const lit = hover === e.from || hover === e.to;
                 const dim = !matchesFilter(e.from) && !matchesFilter(e.to);
                 const isBroken = model?.brokenFrom.has(e.from);
@@ -284,11 +308,14 @@ export default function GraphPage() {
               {graph.nodes.map((nd) => {
                 const p = model?.pos[nd.filePath];
                 if (!p) return null;
+                if (!inView(p)) return null; // wirtualizacja: pomiń poza kadrem
                 const cat = model?.catOf(nd.filePath) ?? 'orphan';
                 const deg = model?.degree[nd.filePath] ?? 0;
                 const isHover = hover === nd.filePath;
                 const dim = !matchesFilter(nd.filePath) || !matchesSearch(nd);
                 const hit = !!q && matchesSearch(nd);
+                const showLabel =
+                  showAllLabels || isHover || hit || deg >= HUB_DEG;
                 return (
                   <g
                     key={nd.filePath}
@@ -305,15 +332,17 @@ export default function GraphPage() {
                       stroke={hit ? 'var(--fg)' : isHover ? '#fff' : 'rgba(255,255,255,.25)'}
                       strokeWidth={hit ? 2 : 1.4}
                     />
-                    <text
-                      y={-15}
-                      textAnchor="middle"
-                      fontSize="11"
-                      fontWeight={isHover || hit ? 600 : 400}
-                      fill={isHover || hit ? 'var(--fg)' : 'var(--fg3)'}
-                    >
-                      {nd.title}
-                    </text>
+                    {showLabel && (
+                      <text
+                        y={-15}
+                        textAnchor="middle"
+                        fontSize="11"
+                        fontWeight={isHover || hit ? 600 : 400}
+                        fill={isHover || hit ? 'var(--fg)' : 'var(--fg3)'}
+                      >
+                        {nd.title}
+                      </text>
+                    )}
                   </g>
                 );
               })}
@@ -323,6 +352,18 @@ export default function GraphPage() {
               {graph ? 'No documents to graph yet.' : 'Loading…'}
             </div>
           )}
+
+          {/* virtualization notice — never silently drop nodes */}
+          {graph &&
+            graph.nodes.length > 0 &&
+            (visibleCount < totalNodes || !showAllLabels) && (
+              <div className="absolute left-3 top-3 rounded-lg border border-capbd bg-capbg/90 px-2.5 py-1 text-[11.5px] font-medium text-fg3 backdrop-blur">
+                {visibleCount < totalNodes
+                  ? `Showing ${visibleCount} of ${totalNodes} nodes`
+                  : `${totalNodes} nodes`}
+                {!showAllLabels && ' · labels on hubs, hover & search'}
+              </div>
+            )}
 
           {/* re-run layout (bottom-left) */}
           <button
