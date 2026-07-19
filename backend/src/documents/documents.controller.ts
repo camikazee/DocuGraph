@@ -120,6 +120,32 @@ export class DocumentsController {
     return this.documentsService.recentlyViewed(workspaceId, req.user.userId);
   }
 
+  @Get('favorites')
+  favorites(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    if (req.authType !== 'jwt') return [];
+    return this.documentsService.listFavorites(workspaceId, req.user.userId);
+  }
+
+  @Post('favorite')
+  setFavorite(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: WatchDto,
+  ) {
+    if (req.authType !== 'jwt') {
+      throw new BadRequestException('Favorites require a signed-in user');
+    }
+    return this.documentsService.setFavorite(
+      workspaceId,
+      req.user.userId,
+      dto.path,
+      dto.on,
+    );
+  }
+
   @Post('watch')
   setWatch(
     @Param('id') workspaceId: string,

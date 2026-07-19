@@ -9,6 +9,7 @@ import { Revision, RevisionSchema } from './schemas/revision.schema';
 import { Comment, CommentSchema } from './schemas/comment.schema';
 import { Event, EventSchema } from './schemas/event.schema';
 import { Watch, WatchSchema } from './schemas/watch.schema';
+import { Favorite, FavoriteSchema } from './schemas/favorite.schema';
 import {
   Notification,
   NotificationSchema,
@@ -34,6 +35,7 @@ import { MediaModule } from '../media/media.module';
       { name: Comment.name, schema: CommentSchema },
       { name: Event.name, schema: EventSchema },
       { name: Watch.name, schema: WatchSchema },
+      { name: Favorite.name, schema: FavoriteSchema },
       { name: Notification.name, schema: NotificationSchema },
     ]),
     AuthModule, // JwtService (dla CombinedAuthGuard)

@@ -16,6 +16,7 @@ import { Revision, RevisionDocument } from './schemas/revision.schema';
 import { Comment, CommentDocument } from './schemas/comment.schema';
 import { Event, EventDocument } from './schemas/event.schema';
 import { Watch, WatchDocument } from './schemas/watch.schema';
+import { Favorite, FavoriteDocument } from './schemas/favorite.schema';
 import {
   Notification,
   NotificationDocument,
@@ -42,6 +43,8 @@ export class DocumentsService {
     private readonly eventModel: Model<EventDocument>,
     @InjectModel(Watch.name)
     private readonly watchModel: Model<WatchDocument>,
+    @InjectModel(Favorite.name)
+    private readonly favoriteModel: Model<FavoriteDocument>,
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<NotificationDocument>,
     private readonly storage: WorkspaceStorageService,
@@ -191,6 +194,36 @@ export class DocumentsService {
       await this.watchModel.deleteOne({ workspaceId, userId, filePath });
     }
     return this.listWatching(workspaceId, userId);
+  }
+
+  // ---- Ulubione (zakładki) ----
+
+  /** Ścieżki dodane do ulubionych przez usera w workspace. */
+  async listFavorites(workspaceId: string, userId: string): Promise<string[]> {
+    const favs = await this.favoriteModel
+      .find({ workspaceId, userId })
+      .select('filePath')
+      .exec();
+    return favs.map((f) => f.filePath);
+  }
+
+  /** Dodaje/usuwa ulubiony dokument; zwraca aktualną listę. */
+  async setFavorite(
+    workspaceId: string,
+    userId: string,
+    filePath: string,
+    on: boolean,
+  ): Promise<string[]> {
+    if (on) {
+      await this.favoriteModel.updateOne(
+        { workspaceId, userId, filePath },
+        { $setOnInsert: { workspaceId, userId, filePath } },
+        { upsert: true },
+      );
+    } else {
+      await this.favoriteModel.deleteOne({ workspaceId, userId, filePath });
+    }
+    return this.listFavorites(workspaceId, userId);
   }
 
   // ---- Review / komentarze ----

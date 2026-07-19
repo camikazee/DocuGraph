@@ -98,7 +98,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 *Get whole trees in and out easily, and make the workspace personal. Ordered cheapest→heaviest.*
 
 - [x] **Recently viewed** — per-user browsing history from read events (deduped by file, newest first, deleted docs dropped); `GET /documents/recently-viewed` + a "Recently viewed" section on the dashboard
-- [ ] **Favorites / bookmarks** — star a document (per-user), a Favorites view, a star toggle in the reader and the list. Modelled on watch. *(small–medium)*
+- [x] **Favorites / bookmarks** — per-user bookmarks (`GET /documents/favorites`, `POST /documents/favorite`), a bookmark toggle in the reader, and a Favorites section on the dashboard (distinct from watch)
 - [ ] **Source download (raw `.md` ZIP)** — download all docs as a ZIP of the raw Markdown with folders preserved (distinct from the rendered static-site export); "grab the whole directory". *(small — reuse JSZip)*
 - [ ] **ZIP import** — upload a `.zip` of a `.md` tree and expand it into the structure (paths preserved). *(small–medium — reuse JSZip)*
 - [ ] **Local directory upload** — pick or drag a folder from disk (`webkitdirectory` / folder drop) and mirror the whole tree via batch upsert. "Select a directory → it uploads the whole structure." *(medium)*

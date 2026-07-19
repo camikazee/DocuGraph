@@ -54,6 +54,31 @@ function ReaderContent() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const [isFav, setIsFav] = useState(false);
+
+  useEffect(() => {
+    if (!ws || !path) return;
+    apiFetch<string[]>(`/workspaces/${ws}/documents/favorites`)
+      .then((list) => setIsFav(list.includes(path)))
+      .catch(() => setIsFav(false));
+  }, [ws, path]);
+
+  async function toggleFavorite() {
+    if (!ws) return;
+    const next = !isFav;
+    setIsFav(next);
+    try {
+      await apiFetch(`/workspaces/${ws}/documents/favorite`, {
+        method: 'POST',
+        body: JSON.stringify({ path, on: next }),
+      });
+      toast(next ? 'Added to favorites' : 'Removed from favorites', 'success');
+    } catch {
+      setIsFav(!next);
+      toast('Could not update favorite', 'error');
+    }
+  }
+
   async function deleteDoc() {
     if (!ws) return;
     if (!window.confirm(`Delete "${path}"? This cannot be undone.`)) return;
@@ -276,8 +301,23 @@ function ReaderContent() {
                   </span>
                 ))}
                 <button
+                  onClick={toggleFavorite}
+                  className={cn(
+                    'ml-auto flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition',
+                    isFav
+                      ? 'border-acc bg-accsoft text-accfg'
+                      : 'border-capbd bg-capbg text-fg2 hover:border-acc',
+                  )}
+                  title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill={isFav ? 'currentColor' : 'none'}>
+                    <path d="M4 2.5h8v11l-4-2.5-4 2.5v-11Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  </svg>
+                  {isFav ? 'Favorited' : 'Favorite'}
+                </button>
+                <button
                   onClick={copyMarkdown}
-                  className="ml-auto flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
+                  className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
                 >
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                     <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="var(--accfg)" strokeWidth="1.3" />

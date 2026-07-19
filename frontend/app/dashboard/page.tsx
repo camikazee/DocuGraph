@@ -125,6 +125,7 @@ export default function DashboardPage() {
   const [brokenCount, setBrokenCount] = useState(0);
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewed[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { watching, toggle } = useWatching(ws);
 
@@ -135,7 +136,7 @@ export default function DashboardPage() {
     if (!ws) return;
     setLoadError(null);
     try {
-      const [list, mem, g, broken, st, viewed] = await Promise.all([
+      const [list, mem, g, broken, st, viewed, fav] = await Promise.all([
         apiFetch<DocItem[]>(`/workspaces/${ws}/documents`),
         apiFetch<Member[]>(`/workspaces/${ws}/members`).catch(() => []),
         apiFetch<Graph>(`/workspaces/${ws}/documents/graph`).catch(() => ({ nodes: [], edges: [] })),
@@ -144,6 +145,9 @@ export default function DashboardPage() {
         apiFetch<RecentlyViewed[]>(
           `/workspaces/${ws}/documents/recently-viewed`,
         ).catch(() => []),
+        apiFetch<string[]>(`/workspaces/${ws}/documents/favorites`).catch(
+          () => [],
+        ),
       ]);
       setDocs(list);
       setMembers(mem);
@@ -151,6 +155,7 @@ export default function DashboardPage() {
       setBrokenCount(broken.length);
       setStats(st);
       setRecentlyViewed(viewed);
+      setFavorites(fav);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load dashboard');
       setDocs([]);
@@ -405,6 +410,37 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* favorites (bookmarks) */}
+        {favorites.length > 0 && (
+          <div className="mt-[18px] rounded-[14px] border border-line bg-card px-5 py-[18px]">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-[15px] font-semibold text-fg">Favorites</span>
+              <span className="rounded-full bg-capbg px-2 py-0.5 text-[11px] font-semibold text-fg3">
+                {favorites.length}
+              </span>
+            </div>
+            <div className="grid">
+              {(docs ?? [])
+                .filter((d) => favorites.includes(d.filePath))
+                .map((d) => (
+                  <Link
+                    key={d.filePath}
+                    href={`/documents/view?path=${encodeURIComponent(d.filePath)}`}
+                    className="flex items-center gap-3 border-t border-line2 py-2.5 first:border-t-0 transition hover:bg-rowhover"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" className="flex-none text-accfg">
+                      <path d="M4 2.5h8v11l-4-2.5-4 2.5v-11Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                    </svg>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium text-fg2">{d.title}</span>
+                      <span className="block truncate font-mono text-[11px] text-fg3">{d.filePath}</span>
+                    </span>
+                  </Link>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* recently viewed by me (browsing history) */}
         {recentlyViewed.length > 0 && (
