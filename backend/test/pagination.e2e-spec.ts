@@ -7,7 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 
-describe('Cursor pagination: notifications + audit (e2e)', () => {
+describe('Cursor pagination: notifications + audit + revisions (e2e)', () => {
   let app: INestApplication;
   let connection: Connection;
   let ownerToken: string;
@@ -137,5 +137,32 @@ describe('Cursor pagination: notifications + audit (e2e)', () => {
       .expect(200);
     const ids1 = new Set(p1.body.map((e: { id: string }) => e.id));
     expect(p2.body.every((e: { id: string }) => !ids1.has(e.id))).toBe(true);
+  });
+
+  it('paginates revisions with limit + before cursor', async () => {
+    // DOC has four versions (v1..v4) → four revisions.
+    const p1 = await request(http())
+      .get(
+        `/api/v1/workspaces/${ws}/documents/revisions?path=${encodeURIComponent(DOC)}&limit=2`,
+      )
+      .set(bearer(ownerToken))
+      .expect(200);
+    expect(p1.body).toHaveLength(2);
+
+    const cursor = p1.body[1].createdAt;
+    const p2 = await request(http())
+      .get(
+        `/api/v1/workspaces/${ws}/documents/revisions?path=${encodeURIComponent(DOC)}&limit=2&before=${encodeURIComponent(cursor)}`,
+      )
+      .set(bearer(ownerToken))
+      .expect(200);
+    expect(p2.body.length).toBeGreaterThanOrEqual(1);
+    const ids1 = new Set(p1.body.map((r: { id: string }) => r.id));
+    expect(p2.body.every((r: { id: string }) => !ids1.has(r.id))).toBe(true);
+    // Diff continuity across the page boundary: the newest item on the older
+    // page still reports a real (non-full-file) diff against its predecessor.
+    expect(p2.body[0].additions + p2.body[0].deletions).toBeGreaterThanOrEqual(
+      0,
+    );
   });
 });

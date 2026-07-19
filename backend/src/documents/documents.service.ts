@@ -866,16 +866,29 @@ export class DocumentsService {
   }
 
   /** Historia edycji dokumentu (najnowsze pierwsze) z licznikami +/-. */
-  async listRevisions(workspaceId: string, filePath: string) {
-    const revs = await this.revisionModel
-      .find({ workspaceId, filePath })
+  async listRevisions(
+    workspaceId: string,
+    filePath: string,
+    opts: { limit?: number; before?: string } = {},
+  ) {
+    const limit = Math.min(opts.limit ?? 30, 100);
+    const filter: Record<string, unknown> = { workspaceId, filePath };
+    if (opts.before) {
+      const cursor = new Date(opts.before);
+      if (!isNaN(cursor.getTime())) filter.createdAt = { $lt: cursor };
+    }
+    // Pobierz limit+1: dodatkowy (starszy) rekord jest potrzebny tylko do
+    // policzenia diffu ostatniego widocznego wpisu — nie zwracamy go.
+    const fetched = await this.revisionModel
+      .find(filter)
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(limit + 1)
       .populate<{ updatedBy: UserDocument | null }>('updatedBy', 'name')
       .exec();
+    const revs = fetched.slice(0, limit);
 
     return revs.map((r, idx) => {
-      const parent = revs[idx + 1]; // starsza wersja
+      const parent = fetched[idx + 1]; // starsza wersja (może być rekord +1)
       const { additions, deletions } = lineDiff(
         parent ? parent.contentRaw : '',
         r.contentRaw,

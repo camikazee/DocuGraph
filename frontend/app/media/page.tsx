@@ -93,15 +93,22 @@ export default function MediaPage() {
 
   const publicUrl = (id: string) => `${apiBaseUrl}/public/workspaces/${ws}/assets/${id}`;
 
+  const PAGE = 40;
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const load = useCallback(async () => {
     if (!ws) return;
     const [v, a, o] = await Promise.all([
       apiFetch<Volume[]>(`/workspaces/${ws}/volumes`).catch(() => []),
-      apiFetch<Asset[]>(`/workspaces/${ws}/assets?filter=${filter}`).catch(() => []),
+      apiFetch<Asset[]>(
+        `/workspaces/${ws}/assets?filter=${filter}&limit=${PAGE}`,
+      ).catch(() => []),
       apiFetch<Overview>(`/workspaces/${ws}/assets/overview`).catch(() => null),
     ]);
     setVolumes(v);
     setAssets(a);
+    setHasMore(a.length === PAGE);
     setOverview(o);
     setUploadVolume((cur) => cur || v[0]?.id || '');
   }, [ws, filter]);
@@ -109,6 +116,23 @@ export default function MediaPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function loadMoreAssets() {
+    if (!ws || !assets || assets.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const before = encodeURIComponent(assets[assets.length - 1].createdAt);
+      const older = await apiFetch<Asset[]>(
+        `/workspaces/${ws}/assets?filter=${filter}&limit=${PAGE}&before=${before}`,
+      );
+      setAssets((prev) => [...(prev ?? []), ...older]);
+      setHasMore(older.length === PAGE);
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not load more', 'error');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   // Reset the move target whenever the selected asset changes.
   useEffect(() => {
@@ -514,6 +538,7 @@ export default function MediaPage() {
 
       {/* assets + details */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.7fr_1fr]">
+        <div>
         <Loader loading={assets === null} empty={shown.length === 0} emptyTitle="No assets" emptyMessage="Upload files to get started." minHeight={260}>
           {view === 'grid' ? (
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
@@ -552,6 +577,18 @@ export default function MediaPage() {
             </div>
           )}
         </Loader>
+        {hasMore && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={loadMoreAssets}
+              disabled={loadingMore}
+              className="rounded-lg border border-capbd bg-capbg px-4 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc disabled:opacity-60"
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        )}
+        </div>
 
         {/* details */}
         <div className="rounded-[14px] border border-line bg-card p-5">

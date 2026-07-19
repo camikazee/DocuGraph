@@ -56,20 +56,41 @@ function HistoryContent() {
   const { profile, error } = useProfile();
   const ws = profile?.workspaces[0]?.id;
 
+  const PAGE = 30;
   const [revs, setRevs] = useState<Revision[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [diff, setDiff] = useState<Diff | null>(null);
   const [mode, setMode] = useState<'split' | 'unified'>('split');
   const [restoring, setRestoring] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const loadRevs = useCallback(async () => {
     if (!ws || !path) return;
     const r = await apiFetch<Revision[]>(
-      `/workspaces/${ws}/documents/revisions?path=${encodeURIComponent(path)}`,
+      `/workspaces/${ws}/documents/revisions?path=${encodeURIComponent(path)}&limit=${PAGE}`,
     );
     setRevs(r);
+    setHasMore(r.length === PAGE);
     setSelected((cur) => cur ?? r[0]?.id ?? null);
   }, [ws, path]);
+
+  async function loadMoreRevs() {
+    if (!ws || !path || revs.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const before = encodeURIComponent(revs[revs.length - 1].createdAt);
+      const older = await apiFetch<Revision[]>(
+        `/workspaces/${ws}/documents/revisions?path=${encodeURIComponent(path)}&limit=${PAGE}&before=${before}`,
+      );
+      setRevs((prev) => [...prev, ...older]);
+      setHasMore(older.length === PAGE);
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Could not load more', 'error');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     void loadRevs();
@@ -175,6 +196,15 @@ function HistoryContent() {
           })}
           {revs.length === 0 && (
             <span className="px-2 text-[13px] text-fg3">No revisions yet.</span>
+          )}
+          {hasMore && (
+            <button
+              onClick={loadMoreRevs}
+              disabled={loadingMore}
+              className="mt-1 block w-full rounded-lg border border-line2 bg-card px-3 py-2 text-[12.5px] font-semibold text-fg2 transition hover:border-acc disabled:opacity-60"
+            >
+              {loadingMore ? 'Loading…' : 'Load older revisions'}
+            </button>
           )}
         </div>
       </aside>

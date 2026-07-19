@@ -196,4 +196,33 @@ describe('Media & volumes (e2e)', () => {
       .expect(201);
     expect(test.body.ok).toBe(false);
   });
+
+  it('paginates assets with limit + before cursor', async () => {
+    for (let i = 0; i < 3; i++) {
+      await request(app.getHttpServer())
+        .post(`/api/v1/workspaces/${ws}/assets`)
+        .set('Authorization', auth())
+        .attach('file', PNG, {
+          filename: `p${i}.png`,
+          contentType: 'image/png',
+        })
+        .expect(201);
+    }
+    const p1 = await request(app.getHttpServer())
+      .get(`/api/v1/workspaces/${ws}/assets?limit=2`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(p1.body).toHaveLength(2);
+
+    const cursor = p1.body[1].createdAt;
+    const p2 = await request(app.getHttpServer())
+      .get(
+        `/api/v1/workspaces/${ws}/assets?limit=2&before=${encodeURIComponent(cursor)}`,
+      )
+      .set('Authorization', auth())
+      .expect(200);
+    expect(p2.body.length).toBeGreaterThanOrEqual(1);
+    const ids1 = new Set(p1.body.map((a: { id: string }) => a.id));
+    expect(p2.body.every((a: { id: string }) => !ids1.has(a.id))).toBe(true);
+  });
 });

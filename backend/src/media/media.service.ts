@@ -270,26 +270,41 @@ export class MediaService {
     };
   }
 
-  async listAssets(workspaceId: string, filter?: string) {
-    const [assets, refs, volumes] = await Promise.all([
-      this.assetModel.find({ workspaceId }).sort({ createdAt: -1 }).exec(),
-      this.referenceMap(workspaceId),
+  async listAssets(
+    workspaceId: string,
+    filter?: string,
+    opts: { limit?: number; before?: string } = {},
+  ) {
+    const limit = Math.min(opts.limit ?? 40, 100);
+    const refs = await this.referenceMap(workspaceId);
+
+    // Filtry wrzucamy do zapytania, żeby paginacja kursorem była poprawna.
+    const query: Record<string, unknown> = { workspaceId };
+    if (filter === 'image') query.type = 'image';
+    else if (filter === 'pdf') query.type = 'pdf';
+    else if (filter === 'large') query.size = { $gt: LARGE_BYTES };
+    else if (filter === 'unused') {
+      // „Nieużywane" = uuid nieobecny w mapie referencji (klucze małymi literami;
+      // uuid assetu jest już małymi literami, więc porównanie jest spójne).
+      query.uuid = { $nin: [...refs.keys()] };
+    }
+    if (opts.before) {
+      const cursor = new Date(opts.before);
+      if (!isNaN(cursor.getTime())) query.createdAt = { $lt: cursor };
+    }
+
+    const [assets, volumes] = await Promise.all([
+      this.assetModel.find(query).sort({ createdAt: -1 }).limit(limit).exec(),
       this.volumeModel.find({ workspaceId }).select('uuid').exec(),
     ]);
     const volUuid = new Map(volumes.map((v) => [v._id.toString(), v.uuid]));
-    let out = assets.map((a) =>
+    return assets.map((a) =>
       this.toAsset(
         a,
         volUuid.get(a.volumeId.toString()) ?? '',
         refs.get(a.uuid.toLowerCase()) ?? [],
       ),
     );
-    if (filter === 'image') out = out.filter((a) => a.type === 'image');
-    else if (filter === 'pdf') out = out.filter((a) => a.type === 'pdf');
-    else if (filter === 'large') out = out.filter((a) => a.size > LARGE_BYTES);
-    else if (filter === 'unused')
-      out = out.filter((a) => a.referencedIn.length === 0);
-    return out;
   }
 
   async overview(workspaceId: string) {

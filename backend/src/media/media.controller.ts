@@ -91,8 +91,16 @@ export class MediaController {
   }
 
   @Get('assets')
-  listAssets(@Param('id') ws: string, @Query('filter') filter?: string) {
-    return this.media.listAssets(ws, filter);
+  listAssets(
+    @Param('id') ws: string,
+    @Query('filter') filter?: string,
+    @Query('before') before?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.media.listAssets(ws, filter, {
+      before,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Post('assets')

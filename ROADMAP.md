@@ -80,7 +80,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 *Stay fast as workspaces grow.*
 
 - [x] **Full-text search** — Mongo `$text` index (title + content, weighted) with scored results, snippets and facets; `/search` page + command palette
-- [~] **Pagination** — cursor pagination (`limit` + `before`) with "Load more" on the append-only logs (notifications, audit); documents / media / revisions still open
+- [x] **Pagination** — cursor pagination (`limit` + `before`, "Load more") on the append-only/growing lists: notifications, audit, **revision history** (fetches one extra older revision so per-page diffs stay correct across the boundary), and the **media library** (filters pushed into the query so cursor paging is correct; overview stats stay a separate whole-set endpoint). The documents list stays whole by design — the graph, reader tree, search and dashboard all need the full set.
 - [x] **Caching** — in-memory TTL cache (30s) for the graph and health computations per workspace, invalidated on document create/edit/move/delete so results stay fresh
 - [ ] **Graph performance** — virtualize / cluster large graphs
 - [x] **Bulk operations** — multi-select on the documents page (owner/editor) with a bulk action bar: add/remove a tag, move into a folder (basename preserved), and delete. One `POST /documents/bulk` endpoint applies the op per path, enforces write access per file, and reports per-path success/failure without aborting the batch (tag edits rewrite frontmatter, preserving other fields). Backed by a 7-scenario e2e.

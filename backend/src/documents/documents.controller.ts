@@ -769,11 +769,19 @@ ${entries}
   }
 
   @Get('revisions')
-  revisions(@Param('id') workspaceId: string, @Query('path') path: string) {
+  revisions(
+    @Param('id') workspaceId: string,
+    @Query('path') path: string,
+    @Query('before') before?: string,
+    @Query('limit') limit?: string,
+  ) {
     if (!path || typeof path !== 'string') {
       throw new BadRequestException('Query param "path" must be a string');
     }
-    return this.documentsService.listRevisions(workspaceId, path);
+    return this.documentsService.listRevisions(workspaceId, path, {
+      before,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Get('revision/:revId')
