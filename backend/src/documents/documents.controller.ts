@@ -110,6 +110,16 @@ export class DocumentsController {
     return this.documentsService.listWatching(workspaceId, req.user.userId);
   }
 
+  /** Ostatnio przeglądane przez zalogowanego usera (historia przeglądania). */
+  @Get('recently-viewed')
+  recentlyViewed(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+  ) {
+    if (req.authType !== 'jwt') return [];
+    return this.documentsService.recentlyViewed(workspaceId, req.user.userId);
+  }
+
   @Post('watch')
   setWatch(
     @Param('id') workspaceId: string,

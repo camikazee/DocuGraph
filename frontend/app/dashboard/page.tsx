@@ -16,6 +16,11 @@ interface DocItem {
   status: string | null;
   updatedBy: string | null;
 }
+interface RecentlyViewed {
+  filePath: string;
+  title: string;
+  viewedAt: string;
+}
 interface Member {
   userId: string;
   name: string;
@@ -119,6 +124,7 @@ export default function DashboardPage() {
   const [graph, setGraph] = useState<Graph>({ nodes: [], edges: [] });
   const [brokenCount, setBrokenCount] = useState(0);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewed[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { watching, toggle } = useWatching(ws);
 
@@ -129,18 +135,22 @@ export default function DashboardPage() {
     if (!ws) return;
     setLoadError(null);
     try {
-      const [list, mem, g, broken, st] = await Promise.all([
+      const [list, mem, g, broken, st, viewed] = await Promise.all([
         apiFetch<DocItem[]>(`/workspaces/${ws}/documents`),
         apiFetch<Member[]>(`/workspaces/${ws}/members`).catch(() => []),
         apiFetch<Graph>(`/workspaces/${ws}/documents/graph`).catch(() => ({ nodes: [], edges: [] })),
         apiFetch<unknown[]>(`/workspaces/${ws}/documents/broken-links`).catch(() => []),
         apiFetch<Stats>(`/workspaces/${ws}/documents/stats`).catch(() => null),
+        apiFetch<RecentlyViewed[]>(
+          `/workspaces/${ws}/documents/recently-viewed`,
+        ).catch(() => []),
       ]);
       setDocs(list);
       setMembers(mem);
       setGraph(g);
       setBrokenCount(broken.length);
       setStats(st);
+      setRecentlyViewed(viewed);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load dashboard');
       setDocs([]);
@@ -395,6 +405,34 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* recently viewed by me (browsing history) */}
+        {recentlyViewed.length > 0 && (
+          <div className="mt-[18px] rounded-[14px] border border-line bg-card px-5 py-[18px]">
+            <div className="mb-3 text-[15px] font-semibold text-fg">
+              Recently viewed
+            </div>
+            <div className="grid">
+              {recentlyViewed.map((d) => (
+                <Link
+                  key={d.filePath}
+                  href={`/documents/view?path=${encodeURIComponent(d.filePath)}`}
+                  className="flex items-center gap-3 border-t border-line2 py-2.5 first:border-t-0 transition hover:bg-rowhover"
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" className="flex-none">
+                    <circle cx="8" cy="8" r="6" stroke="var(--fg3)" strokeWidth="1.1" />
+                    <path d="M8 5v3l2 1.5" stroke="var(--fg3)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium text-fg2">{d.title}</span>
+                    <span className="block truncate font-mono text-[11px] text-fg3">{d.filePath}</span>
+                  </span>
+                  <span className="whitespace-nowrap text-[11px] text-fg3">{rel(d.viewedAt)}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </Loader>
     </AppShell>
   );

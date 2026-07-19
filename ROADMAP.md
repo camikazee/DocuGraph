@@ -97,7 +97,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ## 🎯 Milestone 6 — Content in/out & personal workspace
 *Get whole trees in and out easily, and make the workspace personal. Ordered cheapest→heaviest.*
 
-- [ ] **Recently viewed** — per-user browsing history ("Recent" view). Read events are already captured per user, so this is mostly a query + view. *(small)*
+- [x] **Recently viewed** — per-user browsing history from read events (deduped by file, newest first, deleted docs dropped); `GET /documents/recently-viewed` + a "Recently viewed" section on the dashboard
 - [ ] **Favorites / bookmarks** — star a document (per-user), a Favorites view, a star toggle in the reader and the list. Modelled on watch. *(small–medium)*
 - [ ] **Source download (raw `.md` ZIP)** — download all docs as a ZIP of the raw Markdown with folders preserved (distinct from the rendered static-site export); "grab the whole directory". *(small — reuse JSZip)*
 - [ ] **ZIP import** — upload a `.zip` of a `.md` tree and expand it into the structure (paths preserved). *(small–medium — reuse JSZip)*

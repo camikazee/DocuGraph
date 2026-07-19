@@ -127,6 +127,44 @@ export class DocumentsService {
     });
   }
 
+  /**
+   * Ostatnio przeglądane przez usera dokumenty (historia przeglądania) —
+   * z eventów `read`, zdeduplikowane po pliku (najnowszy odczyt), z tytułem.
+   * Pomija dokumenty, które już nie istnieją.
+   */
+  async recentlyViewed(workspaceId: string, userId: string, limit = 15) {
+    const rows = await this.eventModel.aggregate<{
+      _id: string;
+      viewedAt: Date;
+    }>([
+      {
+        $match: {
+          workspaceId: new Types.ObjectId(workspaceId),
+          userId: new Types.ObjectId(userId),
+          kind: 'read',
+        },
+      },
+      { $group: { _id: '$filePath', viewedAt: { $max: '$createdAt' } } },
+      { $sort: { viewedAt: -1 } },
+      { $limit: Math.min(limit, 50) },
+    ]);
+    if (rows.length === 0) return [];
+    const paths = rows.map((r) => r._id);
+    const docs = await this.documentModel
+      .find({ workspaceId, filePath: { $in: paths } })
+      .select('filePath title')
+      .lean()
+      .exec();
+    const titleByPath = new Map(docs.map((d) => [d.filePath, d.title]));
+    return rows
+      .filter((r) => titleByPath.has(r._id))
+      .map((r) => ({
+        filePath: r._id,
+        title: titleByPath.get(r._id) ?? r._id,
+        viewedAt: r.viewedAt,
+      }));
+  }
+
   /** Ścieżki obserwowane przez usera w workspace. */
   async listWatching(workspaceId: string, userId: string): Promise<string[]> {
     const ws = await this.watchModel
