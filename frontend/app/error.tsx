@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 
 /** Granica błędu segmentu trasy (App Router). Stan „coś poszło nie tak". */

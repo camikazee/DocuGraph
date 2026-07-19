@@ -51,7 +51,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **Audit log** — access/admin + document-level events (member joined/role changed/removed, invitation created/revoked, API key created/revoked, repository configured, published, document moved) with actor + target; Owner-only `GET /workspaces/:id/audit` and an Owner-only `/audit` view (linked from Team)
 - [ ] **Backups** — documented Mongo backup/restore + volume snapshot story
 - [ ] **Secrets** — production secret management (not `.env` on disk)
-- [x] **CI pipeline** — GitHub Actions on every push/PR: backend (lint · unit · e2e · build) + frontend (typecheck · unit · build); enforced prettier across the backend
+- [x] **CI pipeline** — GitHub Actions on every push/PR: backend (lint · unit · e2e · build) + frontend (lint · typecheck · unit · build); enforced prettier across the backend
 - [x] **Fix e2e DB isolation** — e2e now run on an in-memory Mongo per test file (`mongodb-memory-server`); no external DB, parallel-safe, 120/120 green out of the box (`MONGO_URI_TEST` still overrides to a real Mongo)
 - [x] **Rate-limit tuning** — stricter, env-configurable throttle on auth endpoints (login/register/forgot/reset, default 10/60s) on top of the global limit; brute-force/enumeration protection with e2e
 
@@ -86,7 +86,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ## 🎯 Milestone 5 — Polish & DX
 *The 20% that makes it feel finished.*
 
-- [ ] **Frontend ESLint** — configure `next lint` (eslint-config-next) and add it to CI
+- [x] **Frontend ESLint** — `next lint` configured (`next/core-web-vitals` + `next/typescript`, unused-vars as errors), runs at `--max-warnings=0` and gates CI. Migrated web fonts to `next/font` (self-hosted, no CDN `<link>`s) to clear the last lint warning
 - [ ] **Frontend test coverage** (components + key flows)
 - [ ] **Accessibility audit** (keyboard, focus, contrast, reduced motion)
 - [ ] **Mobile/responsive polish**
