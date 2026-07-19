@@ -7,6 +7,7 @@ import { LogoMark } from '@/components/ui/Logo';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { NoAccess } from '@/components/ui/NoAccess';
 import { AccessPanel } from '@/components/AccessPanel';
+import { ShareDialog } from '@/components/ShareDialog';
 import { useToast } from '@/components/ui/Toast';
 import { apiBaseUrl, apiFetch, ApiError } from '@/lib/api';
 import { getToken } from '@/lib/auth';
@@ -57,6 +58,7 @@ function ReaderContent() {
 
   const [isFav, setIsFav] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<
     'in_review' | 'approved' | 'changes_requested'
   >('in_review');
@@ -378,6 +380,21 @@ function ReaderContent() {
                   </svg>
                   Edit
                 </Link>
+                {(role === 'owner' || role === 'editor') && (
+                  <button
+                    onClick={() => setShowShare(true)}
+                    className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
+                    title="Create a public read-only link"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                      <circle cx="4" cy="8" r="1.6" stroke="var(--accfg)" strokeWidth="1.3" />
+                      <circle cx="12" cy="4" r="1.6" stroke="var(--accfg)" strokeWidth="1.3" />
+                      <circle cx="12" cy="12" r="1.6" stroke="var(--accfg)" strokeWidth="1.3" />
+                      <path d="M5.5 7.2l5-2.4M5.5 8.8l5 2.4" stroke="var(--accfg)" strokeWidth="1.3" />
+                    </svg>
+                    Share
+                  </button>
+                )}
                 {role === 'owner' && (
                   <button
                     onClick={() => setShowAccess(true)}
@@ -490,6 +507,14 @@ function ReaderContent() {
           ws={ws}
           filePath={path}
           onClose={() => setShowAccess(false)}
+        />
+      )}
+
+      {showShare && ws && (
+        <ShareDialog
+          ws={ws}
+          filePath={path}
+          onClose={() => setShowShare(false)}
         />
       )}
     </div>

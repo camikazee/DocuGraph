@@ -22,6 +22,8 @@ import {
   ReviewStatus,
   ReviewStatusDocument,
 } from './schemas/review-status.schema';
+import { ShareLink, ShareLinkDocument } from './schemas/share-link.schema';
+import { generateToken, hashToken } from '../common/utils/token.util';
 import {
   Notification,
   NotificationDocument,
@@ -53,6 +55,8 @@ export class DocumentsService {
     private readonly favoriteModel: Model<FavoriteDocument>,
     @InjectModel(ReviewStatus.name)
     private readonly reviewModel: Model<ReviewStatusDocument>,
+    @InjectModel(ShareLink.name)
+    private readonly shareModel: Model<ShareLinkDocument>,
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<NotificationDocument>,
     private readonly storage: WorkspaceStorageService,
@@ -376,6 +380,113 @@ export class DocumentsService {
     await this.notifyWatchers(workspaceId, filePath, title, actorId, 'review');
 
     return this.getReviewStatus(workspaceId, filePath);
+  }
+
+  // ---- Publiczne linki tylko-do-odczytu ----
+
+  private shareUrl(token: string): string {
+    const appUrl = (
+      this.config.get<string>('appUrl') ?? 'http://localhost:3001'
+    ).replace(/\/+$/, '');
+    return `${appUrl}/share/${token}`;
+  }
+
+  /** Aktywne (nieodwołane, niewygasłe) linki dla pliku — bez tokena. */
+  async listShareLinks(workspaceId: string, filePath: string) {
+    const now = new Date();
+    const links = await this.shareModel
+      .find({ workspaceId, filePath, revokedAt: null })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    return links
+      .filter((l) => !l.expiresAt || l.expiresAt > now)
+      .map((l) => ({
+        id: l.uuid,
+        createdAt: (l as unknown as { createdAt: Date }).createdAt,
+        expiresAt: l.expiresAt,
+      }));
+  }
+
+  /** Tworzy publiczny link; surowy token wraca TYLKO teraz (jak reszta sekretów). */
+  async createShareLink(
+    workspaceId: string,
+    filePath: string,
+    createdBy: string | null,
+    expiresInDays?: number,
+  ) {
+    // Dokument musi istnieć, zanim go udostępnimy.
+    const doc = await this.documentModel
+      .findOne({ workspaceId, filePath })
+      .select('_id')
+      .lean()
+      .exec();
+    if (!doc) throw new NotFoundException('Document not found');
+
+    const { raw, hash } = generateToken('dgs_');
+    const expiresAt =
+      expiresInDays && expiresInDays > 0
+        ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
+        : null;
+    const created = await this.shareModel.create({
+      workspaceId,
+      filePath,
+      tokenHash: hash,
+      createdBy: createdBy ? new Types.ObjectId(createdBy) : null,
+      expiresAt,
+    });
+    return {
+      id: created.uuid,
+      url: this.shareUrl(raw),
+      expiresAt,
+    };
+  }
+
+  async revokeShareLink(workspaceId: string, filePath: string, uuid: string) {
+    const res = await this.shareModel.updateOne(
+      { workspaceId, filePath, uuid, revokedAt: null },
+      { $set: { revokedAt: new Date() } },
+    );
+    if (res.matchedCount === 0) {
+      throw new NotFoundException('Share link not found');
+    }
+    return this.listShareLinks(workspaceId, filePath);
+  }
+
+  /**
+   * Rozwiązuje publiczny token → wyrenderowany dokument (obrazy osadzone jako
+   * data-URI, więc treść jest samowystarczalna). Zwraca 404 dla nieważnych,
+   * odwołanych i wygasłych linków (bez wyciekania powodu). Omija ACL — link
+   * jest jawnym nadaniem dla tego jednego pliku.
+   */
+  async resolveShare(token: string) {
+    const link = await this.shareModel
+      .findOne({ tokenHash: hashToken(token) })
+      .lean()
+      .exec();
+    if (!link || link.revokedAt) {
+      throw new NotFoundException('This shared link is no longer available');
+    }
+    if (link.expiresAt && link.expiresAt <= new Date()) {
+      throw new NotFoundException('This shared link has expired');
+    }
+    const workspaceId = link.workspaceId.toString();
+    const doc = await this.documentModel
+      .findOne({ workspaceId, filePath: link.filePath })
+      .select('title contentHtml updatedAt')
+      .lean()
+      .exec();
+    if (!doc) {
+      throw new NotFoundException('This shared document no longer exists');
+    }
+    const workspaceName = await this.workspaces.getName(workspaceId);
+    const html = await this.embedImages(doc.contentHtml ?? '', workspaceId);
+    return {
+      title: doc.title,
+      html,
+      updatedAt: (doc as unknown as { updatedAt: Date }).updatedAt,
+      workspaceName: workspaceName ?? 'DocuGraph',
+    };
   }
 
   /**

@@ -29,6 +29,7 @@ import { FixBrokenLinkDto } from './dto/fix-broken-link.dto';
 import { SourceDto } from './dto/source.dto';
 import { AddCommentDto, ResolveCommentDto } from './dto/comment.dto';
 import { SetReviewStatusDto } from './dto/review-status.dto';
+import { CreateShareLinkDto } from './dto/share-link.dto';
 import { MoveDocumentDto } from './dto/move-document.dto';
 import { ReadEventDto, WatchDto } from './dto/telemetry.dto';
 import { PublishDto } from './dto/publish.dto';
@@ -363,6 +364,50 @@ export class DocumentsController {
       dto.status,
       this.actorOf(req),
     );
+  }
+
+  // ---- Publiczne linki tylko-do-odczytu (tylko dla mających prawo zapisu) ----
+
+  @Get('share-links')
+  async listShareLinks(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Query('path') path: string,
+  ) {
+    if (!path || typeof path !== 'string') {
+      throw new BadRequestException('Query param "path" must be a string');
+    }
+    await this.assertCanWrite(workspaceId, req, path);
+    return this.documentsService.listShareLinks(workspaceId, path);
+  }
+
+  @Post('share-links')
+  async createShareLink(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Body() dto: CreateShareLinkDto,
+  ) {
+    await this.assertCanWrite(workspaceId, req, dto.path);
+    return this.documentsService.createShareLink(
+      workspaceId,
+      dto.path,
+      this.actorOf(req),
+      dto.expiresInDays,
+    );
+  }
+
+  @Delete('share-links/:linkId')
+  async revokeShareLink(
+    @Param('id') workspaceId: string,
+    @Param('linkId') linkId: string,
+    @Req() req: RequestWithWorkspace,
+    @Query('path') path: string,
+  ) {
+    if (!path || typeof path !== 'string') {
+      throw new BadRequestException('Query param "path" must be a string');
+    }
+    await this.assertCanWrite(workspaceId, req, path);
+    return this.documentsService.revokeShareLink(workspaceId, path, linkId);
   }
 
   // ---- Source (Git) — Moduł F ----

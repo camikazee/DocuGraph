@@ -14,12 +14,14 @@ import {
   ReviewStatus,
   ReviewStatusSchema,
 } from './schemas/review-status.schema';
+import { ShareLink, ShareLinkSchema } from './schemas/share-link.schema';
 import {
   Notification,
   NotificationSchema,
 } from './schemas/notification.schema';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
+import { PublicDocsController } from './public-docs.controller';
 import { WebhooksController } from './webhooks.controller';
 import { WorkspaceStorageService } from './workspace-storage.service';
 import { MarkdownParserService } from './markdown-parser.service';
@@ -42,6 +44,7 @@ import { AccessModule } from '../access/access.module';
       { name: Watch.name, schema: WatchSchema },
       { name: Favorite.name, schema: FavoriteSchema },
       { name: ReviewStatus.name, schema: ReviewStatusSchema },
+      { name: ShareLink.name, schema: ShareLinkSchema },
       { name: Notification.name, schema: NotificationSchema },
     ]),
     AuthModule, // JwtService (dla CombinedAuthGuard)
@@ -54,7 +57,7 @@ import { AccessModule } from '../access/access.module';
     MediaModule, // odczyt bajtów assetów (osadzanie obrazów w eksporcie)
     AccessModule, // grupy + reguły dostępu (egzekwowanie per-resource)
   ],
-  controllers: [DocumentsController, WebhooksController],
+  controllers: [DocumentsController, PublicDocsController, WebhooksController],
   providers: [
     DocumentsService,
     WorkspaceStorageService,

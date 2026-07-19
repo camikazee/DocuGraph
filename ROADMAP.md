@@ -73,7 +73,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **Multi-page static site export** — ZIP with a page per document (folders preserved), a shared stylesheet, an index, and internal links/nav rewritten to relative `.html` paths (works from file://)
 - [x] **Embed images in export** — referenced assets are inlined as base64 data URIs in both the single-file and ZIP exports, so they render without a live API (unreadable assets keep their original URL)
 - [~] **Branded export** — exports are titled with the workspace name (single-file + ZIP). PDF export still open (needs headless Chromium)
-- [ ] **Public read-only doc sites** (shareable link, optional auth)
+- [x] **Public read-only shareable links** — an owner/editor (with write access) mints a revocable, optionally-expiring public link to a single document. The `/share/:token` page renders it read-only with code highlighting + Mermaid, no account needed; images are embedded so it's self-contained. Tokens are stored hashed (raw shown once, like CI tokens), the public endpoint leaks no internal ids and is rate-limited, and a share is an explicit per-file grant that bypasses ACL only for that file. Backed by a 5-scenario e2e. *(Whole-site public publishing still open.)*
 - [ ] **Versioned docs** — publish from a branch / tag; doc version switcher
 
 ## 🎯 Milestone 4 — Search & scale
