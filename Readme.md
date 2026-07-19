@@ -78,6 +78,11 @@ The compose stack is dev/demo only. For production setup (secrets, TLS,
 persistent storage, hardening, connecting a repo, CI gate) see
 [DEPLOY.md](DEPLOY.md). Security model and reporting: [SECURITY.md](SECURITY.md).
 
+## Demo & walkthrough
+
+A guided tour with screenshots of the main views (and two-command local setup):
+[docs/demo](docs/demo/README.md).
+
 ## Roadmap
 
 What's shipped and what's next, as a checkable list: [ROADMAP.md](ROADMAP.md).

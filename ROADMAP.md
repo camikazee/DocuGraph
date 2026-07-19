@@ -108,9 +108,9 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 ## 🎯 Milestone 7 — Public demo showcase (do last)
 *Let anyone see it working straight from GitHub, once the features above exist.*
 
-- [ ] **Polished demo seed** — one-command install populating a realistic workspace (extend `backend/scripts/seed.mjs`).
-- [ ] **Demo walkthrough in the repo** — `docs/demo/` with current screenshots of the main views + step-by-step instructions, so the GitHub repo shows the product in practice. *(NB: this intentionally reverses the earlier "screenshots stay internal" decision — the owner now wants curated demo screenshots public.)*
-- [ ] **Optional live/preview** — a hosted or one-command `docker compose` demo people can click through.
+- [x] **Polished demo seed** — one-command `npm run seed` populates a realistic workspace (3 users, cross-linked docs incl. code + Mermaid, media, an intentional broken link).
+- [x] **Demo walkthrough in the repo** — `docs/demo/` with a guided tour + current screenshots of the main views (dashboard, documents, graph, reader, media, connect) and run-it-yourself instructions, linked from the root README. *(Intentionally makes curated demo screenshots public — reverses the earlier "screenshots stay internal" call.)*
+- [ ] **Optional live/preview** — a hosted demo people can click through (compose demo already documented).
 
 ---
 
