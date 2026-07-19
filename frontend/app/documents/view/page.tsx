@@ -47,14 +47,41 @@ function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+interface DocVersion {
+  id: string;
+  label: string;
+}
+
 function ReaderContent() {
   const params = useSearchParams();
   const path = params.get('path') ?? '';
+  const versionId = params.get('version') ?? '';
+  const inVersion = !!versionId;
   const { profile, error } = useProfile();
   const ws = profile?.workspaces[0]?.id;
   const role = profile?.workspaces[0]?.role;
   const router = useRouter();
   const { toast } = useToast();
+
+  const [versions, setVersions] = useState<DocVersion[]>([]);
+  const currentVersion = versions.find((v) => v.id === versionId) ?? null;
+
+  useEffect(() => {
+    if (!ws) return;
+    apiFetch<DocVersion[]>(`/workspaces/${ws}/document-versions`)
+      .then(setVersions)
+      .catch(() => setVersions([]));
+  }, [ws]);
+
+  // Link helper preserving the active version across the tree.
+  const linkTo = (p: string) =>
+    `/documents/view?path=${encodeURIComponent(p)}${inVersion ? `&version=${versionId}` : ''}`;
+
+  function switchVersion(id: string) {
+    router.push(
+      `/documents/view?path=${encodeURIComponent(path)}${id ? `&version=${id}` : ''}`,
+    );
+  }
 
   const [isFav, setIsFav] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
@@ -64,20 +91,20 @@ function ReaderContent() {
   >('in_review');
 
   useEffect(() => {
-    if (!ws || !path) return;
+    if (!ws || !path || inVersion) return;
     apiFetch<{ status: 'in_review' | 'approved' | 'changes_requested' }>(
       `/workspaces/${ws}/documents/review-status?path=${encodeURIComponent(path)}`,
     )
       .then((r) => setReviewStatus(r.status))
       .catch(() => setReviewStatus('in_review'));
-  }, [ws, path]);
+  }, [ws, path, inVersion]);
 
   useEffect(() => {
-    if (!ws || !path) return;
+    if (!ws || !path || inVersion) return;
     apiFetch<string[]>(`/workspaces/${ws}/documents/favorites`)
       .then((list) => setIsFav(list.includes(path)))
       .catch(() => setIsFav(false));
-  }, [ws, path]);
+  }, [ws, path, inVersion]);
 
   async function toggleFavorite() {
     if (!ws) return;
@@ -128,29 +155,43 @@ function ReaderContent() {
 
   useEffect(() => {
     if (!ws) return;
-    apiFetch<DocItem[]>(`/workspaces/${ws}/documents`)
+    const url = inVersion
+      ? `/workspaces/${ws}/document-versions/${versionId}/documents`
+      : `/workspaces/${ws}/documents`;
+    apiFetch<DocItem[]>(url)
       .then(setDocs)
       .catch(() => setDocs([]));
-  }, [ws]);
+  }, [ws, inVersion, versionId]);
 
   useEffect(() => {
     if (!ws || !path) return;
     setNotFound(false);
     setForbidden(false);
     setDoc(null);
-    apiFetch<FullDoc>(
-      `/workspaces/${ws}/documents/by-path?path=${encodeURIComponent(path)}`,
-    )
-      .then(setDoc)
+    const url = inVersion
+      ? `/workspaces/${ws}/document-versions/${versionId}/by-path?path=${encodeURIComponent(path)}`
+      : `/workspaces/${ws}/documents/by-path?path=${encodeURIComponent(path)}`;
+    apiFetch<Partial<FullDoc>>(url)
+      .then((d) =>
+        setDoc({
+          filePath: d.filePath ?? path,
+          title: d.title ?? path,
+          contentRaw: d.contentRaw ?? '',
+          contentHtml: d.contentHtml ?? '',
+          metadata: d.metadata,
+          links: d.links ?? { outgoing: [], incoming: [] },
+        }),
+      )
       .catch((err) => {
         if (err instanceof ApiError && err.status === 403) setForbidden(true);
         else setNotFound(true);
       });
-  }, [ws, path]);
+  }, [ws, path, inVersion, versionId]);
 
   // Telemetria: rejestruj odczyt z czasem dwell przy opuszczeniu dokumentu.
+  // Migawki wersji są tylko-do-odczytu — nie liczymy ich do statystyk odczytu.
   useEffect(() => {
-    if (!ws || !path || !doc) return;
+    if (!ws || !path || !doc || inVersion) return;
     const start = Date.now();
     let sent = false;
     const send = () => {
@@ -178,7 +219,7 @@ function ReaderContent() {
       window.removeEventListener('pagehide', send);
       send(); // nawigacja SPA / odmontowanie
     };
-  }, [ws, path, doc]);
+  }, [ws, path, doc, inVersion]);
 
   // Build the "On this page" TOC from rendered headings + assign ids.
   useEffect(() => {
@@ -280,7 +321,7 @@ function ReaderContent() {
               {items.map((d) => (
                 <Link
                   key={d.filePath}
-                  href={`/documents/view?path=${encodeURIComponent(d.filePath)}`}
+                  href={linkTo(d.filePath)}
                   className={cn(
                     'block truncate rounded-[7px] px-3 py-1.5 text-[13.5px] transition',
                     d.filePath === path
@@ -303,6 +344,18 @@ function ReaderContent() {
           {notFound && <p className="text-fg3">Document not found.</p>}
           {doc && (
             <>
+              {inVersion && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-[12.5px] text-amber-300">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 4v4l2.5 1.5M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  </svg>
+                  Viewing published version{' '}
+                  <strong className="font-semibold">
+                    {currentVersion?.label ?? 'snapshot'}
+                  </strong>{' '}
+                  — read-only.
+                </div>
+              )}
               <div className="mb-5 flex flex-wrap items-center gap-2 text-[13px] text-muted">
                 {crumbs.map((seg, i) => (
                   <span key={i} className="flex items-center gap-2">
@@ -316,21 +369,39 @@ function ReaderContent() {
                     )}
                   </span>
                 ))}
-                <button
-                  onClick={toggleFavorite}
-                  className={cn(
-                    'ml-auto flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition',
-                    isFav
-                      ? 'border-acc bg-accsoft text-accfg'
-                      : 'border-capbd bg-capbg text-fg2 hover:border-acc',
-                  )}
-                  title={isFav ? 'Remove from favorites' : 'Add to favorites'}
-                >
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill={isFav ? 'currentColor' : 'none'}>
-                    <path d="M4 2.5h8v11l-4-2.5-4 2.5v-11Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                  </svg>
-                  {isFav ? 'Favorited' : 'Favorite'}
-                </button>
+                {versions.length > 0 && (
+                  <select
+                    value={versionId}
+                    onChange={(e) => switchVersion(e.target.value)}
+                    aria-label="Document version"
+                    className="ml-auto rounded-lg border border-capbd bg-capbg px-2.5 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
+                  >
+                    <option value="">Current</option>
+                    {versions.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {!inVersion && (
+                  <button
+                    onClick={toggleFavorite}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition',
+                      versions.length === 0 && 'ml-auto',
+                      isFav
+                        ? 'border-acc bg-accsoft text-accfg'
+                        : 'border-capbd bg-capbg text-fg2 hover:border-acc',
+                    )}
+                    title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill={isFav ? 'currentColor' : 'none'}>
+                      <path d="M4 2.5h8v11l-4-2.5-4 2.5v-11Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                    </svg>
+                    {isFav ? 'Favorited' : 'Favorite'}
+                  </button>
+                )}
                 <button
                   onClick={copyMarkdown}
                   className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
@@ -347,40 +418,44 @@ function ReaderContent() {
                 >
                   {raw ? 'Rendered' : 'Raw'}
                 </button>
-                <Link
-                  href={`/documents/review?path=${encodeURIComponent(path)}`}
-                  className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
-                >
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 3.5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1V10a1 1 0 0 1-1 1H6l-3 2.5V11H3a1 1 0 0 1-1-1V3.5Z" stroke="var(--accfg)" strokeWidth="1.3" strokeLinejoin="round" />
-                  </svg>
-                  Review
-                  {reviewStatus !== 'in_review' && (
-                    <span
-                      className={cn(
-                        'h-1.5 w-1.5 rounded-full',
-                        reviewStatus === 'approved'
-                          ? 'bg-emerald-400'
-                          : 'bg-red-400',
-                      )}
-                      title={
-                        reviewStatus === 'approved'
-                          ? 'Approved'
-                          : 'Changes requested'
-                      }
-                    />
-                  )}
-                </Link>
-                <Link
-                  href={`/documents/edit?path=${encodeURIComponent(path)}`}
-                  className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
-                >
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                    <path d="M11 2.5l2.5 2.5L6 12.5 3 13l.5-3L11 2.5Z" stroke="var(--accfg)" strokeWidth="1.3" strokeLinejoin="round" />
-                  </svg>
-                  Edit
-                </Link>
-                {(role === 'owner' || role === 'editor') && (
+                {!inVersion && (
+                  <Link
+                    href={`/documents/review?path=${encodeURIComponent(path)}`}
+                    className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 3.5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1V10a1 1 0 0 1-1 1H6l-3 2.5V11H3a1 1 0 0 1-1-1V3.5Z" stroke="var(--accfg)" strokeWidth="1.3" strokeLinejoin="round" />
+                    </svg>
+                    Review
+                    {reviewStatus !== 'in_review' && (
+                      <span
+                        className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          reviewStatus === 'approved'
+                            ? 'bg-emerald-400'
+                            : 'bg-red-400',
+                        )}
+                        title={
+                          reviewStatus === 'approved'
+                            ? 'Approved'
+                            : 'Changes requested'
+                        }
+                      />
+                    )}
+                  </Link>
+                )}
+                {!inVersion && (
+                  <Link
+                    href={`/documents/edit?path=${encodeURIComponent(path)}`}
+                    className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                      <path d="M11 2.5l2.5 2.5L6 12.5 3 13l.5-3L11 2.5Z" stroke="var(--accfg)" strokeWidth="1.3" strokeLinejoin="round" />
+                    </svg>
+                    Edit
+                  </Link>
+                )}
+                {!inVersion && (role === 'owner' || role === 'editor') && (
                   <button
                     onClick={() => setShowShare(true)}
                     className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
@@ -395,7 +470,7 @@ function ReaderContent() {
                     Share
                   </button>
                 )}
-                {role === 'owner' && (
+                {!inVersion && role === 'owner' && (
                   <button
                     onClick={() => setShowAccess(true)}
                     className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
@@ -408,7 +483,7 @@ function ReaderContent() {
                     Access
                   </button>
                 )}
-                {(role === 'owner' || role === 'editor') && (
+                {!inVersion && (role === 'owner' || role === 'editor') && (
                   <button
                     onClick={deleteDoc}
                     className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-red-500 hover:text-red-400"

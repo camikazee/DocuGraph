@@ -74,7 +74,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **Embed images in export** — referenced assets are inlined as base64 data URIs in both the single-file and ZIP exports, so they render without a live API (unreadable assets keep their original URL)
 - [~] **Branded export** — exports are titled with the workspace name (single-file + ZIP). PDF export still open (needs headless Chromium)
 - [x] **Public read-only shareable links** — an owner/editor (with write access) mints a revocable, optionally-expiring public link to a single document. The `/share/:token` page renders it read-only with code highlighting + Mermaid, no account needed; images are embedded so it's self-contained. Tokens are stored hashed (raw shown once, like CI tokens), the public endpoint leaks no internal ids and is rate-limited, and a share is an explicit per-file grant that bypasses ACL only for that file. Backed by a 5-scenario e2e. *(Whole-site public publishing still open.)*
-- [ ] **Versioned docs** — publish from a branch / tag; doc version switcher
+- [x] **Versioned docs** — snapshot-based releases. "Publish version" freezes the current doc set under a label (e.g. `v2.1`) into an immutable snapshot; the reader gets a version switcher (**Current** + published versions) that renders docs from the snapshot read-only (live-only actions — edit, review, favorite, access, share, read telemetry — are hidden). Snapshots respect per-resource ACL at read time; owner-only delete; publishing is audited. Backed by a 6-scenario e2e (freeze-vs-live, listing, duplicate-label 400, viewer-cannot-publish 403, owner-only delete).
 
 ## 🎯 Milestone 4 — Search & scale
 *Stay fast as workspaces grow.*

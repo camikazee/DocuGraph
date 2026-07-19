@@ -15,6 +15,11 @@ import {
   ReviewStatusSchema,
 } from './schemas/review-status.schema';
 import { ShareLink, ShareLinkSchema } from './schemas/share-link.schema';
+import { DocVersion, DocVersionSchema } from './schemas/doc-version.schema';
+import {
+  DocVersionFile,
+  DocVersionFileSchema,
+} from './schemas/doc-version-file.schema';
 import {
   Notification,
   NotificationSchema,
@@ -22,7 +27,9 @@ import {
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
 import { PublicDocsController } from './public-docs.controller';
+import { DocVersionsController } from './doc-versions.controller';
 import { WebhooksController } from './webhooks.controller';
+import { DocVersionsService } from './doc-versions.service';
 import { WorkspaceStorageService } from './workspace-storage.service';
 import { MarkdownParserService } from './markdown-parser.service';
 import { GitPublishService } from './git-publish.service';
@@ -45,6 +52,8 @@ import { AccessModule } from '../access/access.module';
       { name: Favorite.name, schema: FavoriteSchema },
       { name: ReviewStatus.name, schema: ReviewStatusSchema },
       { name: ShareLink.name, schema: ShareLinkSchema },
+      { name: DocVersion.name, schema: DocVersionSchema },
+      { name: DocVersionFile.name, schema: DocVersionFileSchema },
       { name: Notification.name, schema: NotificationSchema },
     ]),
     AuthModule, // JwtService (dla CombinedAuthGuard)
@@ -57,9 +66,15 @@ import { AccessModule } from '../access/access.module';
     MediaModule, // odczyt bajtów assetów (osadzanie obrazów w eksporcie)
     AccessModule, // grupy + reguły dostępu (egzekwowanie per-resource)
   ],
-  controllers: [DocumentsController, PublicDocsController, WebhooksController],
+  controllers: [
+    DocumentsController,
+    PublicDocsController,
+    DocVersionsController,
+    WebhooksController,
+  ],
   providers: [
     DocumentsService,
+    DocVersionsService,
     WorkspaceStorageService,
     MarkdownParserService,
     GitPublishService,

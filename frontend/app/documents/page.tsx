@@ -298,6 +298,23 @@ export default function DocumentsPage() {
       void runBulk('delete');
   }
 
+  async function publishVersion() {
+    if (!ws) return;
+    const label = window.prompt(
+      'Publish a version — snapshot the current docs under a label (e.g. v2.1):',
+    )?.trim();
+    if (!label) return;
+    try {
+      const res = await apiFetch<{ label: string; docCount: number }>(
+        `/workspaces/${ws}/document-versions`,
+        { method: 'POST', body: JSON.stringify({ label }) },
+      );
+      toast(`Published ${res.label} (${res.docCount} docs)`, 'success');
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : 'Publish failed', 'error');
+    }
+  }
+
   async function createDoc(e: React.FormEvent) {
     e.preventDefault();
     if (!ws) return;
@@ -428,6 +445,18 @@ export default function DocumentsPage() {
             </svg>
             Structure
           </Link>
+          {canEdit && (
+            <button
+              onClick={publishVersion}
+              title="Snapshot the current docs as a named version"
+              className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M3 2.5h10v11l-5-3-5 3v-11Z" stroke="var(--accfg)" strokeWidth="1.2" strokeLinejoin="round" />
+              </svg>
+              Publish version
+            </button>
+          )}
           <Button onClick={() => setShowForm((v) => !v)}>
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
               <path d="M8 3.5v9M3.5 8h9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
