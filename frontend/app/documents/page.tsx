@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
@@ -90,15 +90,20 @@ export default function DocumentsPage() {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  // Download the workspace docs — either one self-contained HTML file, or a
-  // multi-page static site as a ZIP.
+  // Download the workspace docs: single HTML file, multi-page static site (ZIP),
+  // or the raw Markdown source (ZIP, folder structure preserved).
   const exportDocs = useCallback(
-    async (kind: 'html' | 'zip') => {
+    async (kind: 'html' | 'zip' | 'source') => {
       if (!ws || exporting) return;
+      const spec = {
+        html: { path: 'export.html', file: 'documentation.html' },
+        zip: { path: 'export.zip', file: 'documentation.zip' },
+        source: { path: 'export/source.zip', file: 'documentation-source.zip' },
+      }[kind];
       setExporting(true);
       try {
         const res = await fetch(
-          `${apiBaseUrl}/workspaces/${ws}/documents/export.${kind}`,
+          `${apiBaseUrl}/workspaces/${ws}/documents/${spec.path}`,
           { headers: { Authorization: `Bearer ${getToken() ?? ''}` } },
         );
         if (!res.ok) throw new Error(String(res.status));
@@ -106,7 +111,7 @@ export default function DocumentsPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = kind === 'zip' ? 'documentation.zip' : 'documentation.html';
+        a.download = spec.file;
         a.click();
         URL.revokeObjectURL(url);
         toast('Documentation exported', 'success');
@@ -118,6 +123,81 @@ export default function DocumentsPage() {
     },
     [ws, exporting, toast],
   );
+
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const zipInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  // Import a picked folder: upload each .md preserving the tree (top folder
+  // stripped), reusing the create endpoint.
+  async function importFolder(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []).filter((f) =>
+      f.name.toLowerCase().endsWith('.md'),
+    );
+    e.target.value = '';
+    if (!ws || files.length === 0) return;
+    setImporting(true);
+    let ok = 0;
+    try {
+      for (const f of files) {
+        const rel = (f as File & { webkitRelativePath?: string })
+          .webkitRelativePath;
+        const filePath = rel
+          ? rel.split('/').slice(1).join('/') || f.name
+          : f.name;
+        try {
+          await apiFetch(`/workspaces/${ws}/documents`, {
+            method: 'POST',
+            body: JSON.stringify({
+              file_path: filePath,
+              content_raw: await f.text(),
+            }),
+          });
+          ok++;
+        } catch {
+          /* skip invalid path */
+        }
+      }
+      toast(`Imported ${ok} of ${files.length} file(s)`, ok ? 'success' : 'error');
+      await load();
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  // Import a .zip of a .md tree via the backend importer.
+  async function importZip(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!ws || !file) return;
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(
+        `${apiBaseUrl}/workspaces/${ws}/documents/import.zip`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken() ?? ''}` },
+          body: fd,
+        },
+      );
+      if (!res.ok) throw new Error(String(res.status));
+      const { imported, skipped } = (await res.json()) as {
+        imported: number;
+        skipped: number;
+      };
+      toast(
+        `Imported ${imported} file(s)${skipped ? ` · ${skipped} skipped` : ''}`,
+        'success',
+      );
+      await load();
+    } catch {
+      toast('Import failed', 'error');
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const load = useCallback(async () => {
     if (!ws) return;
@@ -220,7 +300,57 @@ export default function DocumentsPage() {
             >
               Site .zip
             </button>
+            <button
+              onClick={() => exportDocs('source')}
+              disabled={exporting}
+              className="border-l border-capbd px-3 py-2 text-[13px] font-semibold text-fg3 transition hover:text-fg disabled:opacity-60"
+              title="Download the raw Markdown source as a ZIP (folder structure preserved)"
+            >
+              Source .zip
+            </button>
           </div>
+
+          {/* import: folder or .zip */}
+          <div className="flex items-center overflow-hidden rounded-lg border border-capbd bg-capbg">
+            <button
+              onClick={() => folderInputRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:text-fg disabled:opacity-60"
+              title="Upload a folder from disk — mirrors the whole tree"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M8 13.5v-7M5 9l3-3 3 3M2.5 3.5h4L8 5h5.5a1 1 0 0 1 1 1V12" stroke="var(--accfg)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {importing ? 'Importing…' : 'Import folder'}
+            </button>
+            <button
+              onClick={() => zipInputRef.current?.click()}
+              disabled={importing}
+              className="border-l border-capbd px-3 py-2 text-[13px] font-semibold text-fg3 transition hover:text-fg disabled:opacity-60"
+              title="Import a .zip of a Markdown tree"
+            >
+              .zip
+            </button>
+          </div>
+          {/* hidden inputs for folder + zip import */}
+          <input
+            ref={folderInputRef}
+            type="file"
+            multiple
+            // @ts-expect-error non-standard directory-picker attributes
+            webkitdirectory=""
+            directory=""
+            className="hidden"
+            onChange={importFolder}
+          />
+          <input
+            ref={zipInputRef}
+            type="file"
+            accept=".zip,application/zip"
+            className="hidden"
+            onChange={importZip}
+          />
+
           <Link
             href="/documents/structure"
             className="flex items-center gap-2 rounded-lg border border-capbd bg-capbg px-3.5 py-2 text-[13px] font-semibold text-fg2 transition hover:border-acc"

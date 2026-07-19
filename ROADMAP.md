@@ -99,9 +99,9 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 
 - [x] **Recently viewed** — per-user browsing history from read events (deduped by file, newest first, deleted docs dropped); `GET /documents/recently-viewed` + a "Recently viewed" section on the dashboard
 - [x] **Favorites / bookmarks** — per-user bookmarks (`GET /documents/favorites`, `POST /documents/favorite`), a bookmark toggle in the reader, and a Favorites section on the dashboard (distinct from watch)
-- [ ] **Source download (raw `.md` ZIP)** — download all docs as a ZIP of the raw Markdown with folders preserved (distinct from the rendered static-site export); "grab the whole directory". *(small — reuse JSZip)*
-- [ ] **ZIP import** — upload a `.zip` of a `.md` tree and expand it into the structure (paths preserved). *(small–medium — reuse JSZip)*
-- [ ] **Local directory upload** — pick or drag a folder from disk (`webkitdirectory` / folder drop) and mirror the whole tree via batch upsert. "Select a directory → it uploads the whole structure." *(medium)*
+- [x] **Source download (raw `.md` ZIP)** — `GET /documents/export/source.zip` returns all docs as raw Markdown with folders preserved (distinct from the rendered site ZIP)
+- [x] **ZIP import** — `POST /documents/import.zip` expands a `.md` tree into the workspace (paths preserved, non-md ignored, invalid zip rejected)
+- [x] **Local directory upload** — pick a folder from disk (`webkitdirectory`) on the documents page; each `.md` is uploaded preserving the tree (top folder stripped)
 - [ ] **Private Git import** — token auth + drop the 300-file cap (extends the current public-GitHub indexing). *(medium)*
 - [ ] **Per-resource access control** — per-folder / per-path permissions on top of workspace RBAC (Owner/Editor/Viewer already enforced). *(large)*
 

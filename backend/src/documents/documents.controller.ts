@@ -10,8 +10,11 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -462,6 +465,43 @@ export class DocumentsController {
       'attachment; filename="documentation.zip"',
     );
     res.send(buffer);
+  }
+
+  /** Eksport źródłowy — ZIP z surowymi `.md` (odwzorowanie katalogu). */
+  @Get('export/source.zip')
+  async exportSourceZip(
+    @Param('id') workspaceId: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.documentsService.exportSourceZip(workspaceId);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="documentation-source.zip"',
+    );
+    res.send(buffer);
+  }
+
+  /** Import ZIP — wgrywa `.md` z archiwum, odwzorowując strukturę katalogów. */
+  @Post('import.zip')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }),
+  )
+  async importZip(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file?.buffer) throw new BadRequestException('No file uploaded');
+    const result = await this.documentsService.importZip(
+      workspaceId,
+      file.buffer,
+      this.actorOf(req),
+    );
+    this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
+    return result;
   }
 
   /** Atom feed ostatnio zmienionych dokumentów. */

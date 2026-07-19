@@ -1038,6 +1038,64 @@ table{border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:6px 10px}
    * współdzielony style.css + index.html). Linki wewnętrzne `.md` i nawigacja
    * są przepisane na względne ścieżki `.html`, więc działa z file://.
    */
+  /**
+   * Import ZIP: rozpakowuje `.md` z archiwum i wgrywa je pod ich ścieżkami
+   * (odwzorowanie struktury). Ścieżki niebezpieczne/niepoprawne są pomijane
+   * (upsert waliduje przez resolveSafePath). Zwraca liczby imported/skipped.
+   */
+  async importZip(
+    workspaceId: string,
+    buffer: Buffer,
+    updatedBy: string | null,
+  ): Promise<{ imported: number; skipped: number }> {
+    const JSZip = (await import('jszip')).default;
+    const zip = await JSZip.loadAsync(buffer).catch(() => null);
+    if (!zip) throw new BadRequestException('Invalid ZIP archive');
+    const entries = Object.values(zip.files).filter(
+      (f) => !f.dir && f.name.toLowerCase().endsWith('.md'),
+    );
+    let imported = 0;
+    let skipped = 0;
+    for (const entry of entries.slice(0, 500)) {
+      const filePath = entry.name.replace(/^\/+/, '');
+      if (!filePath || filePath.includes('..')) {
+        skipped++;
+        continue;
+      }
+      try {
+        const content = await entry.async('string');
+        await this.upsert(
+          workspaceId,
+          filePath,
+          content,
+          updatedBy,
+          'Imported from ZIP',
+        );
+        imported++;
+      } catch {
+        skipped++;
+      }
+    }
+    return { imported, skipped };
+  }
+
+  /**
+   * Eksport źródłowy: ZIP z surowymi plikami `.md` pod ich oryginalnymi
+   * ścieżkami (odwzorowanie katalogu) — do łatwego pobrania/backupu/importu.
+   */
+  async exportSourceZip(workspaceId: string): Promise<Buffer> {
+    const JSZip = (await import('jszip')).default;
+    const docs = await this.documentModel
+      .find({ workspaceId })
+      .select('filePath contentRaw')
+      .sort({ filePath: 1 })
+      .lean()
+      .exec();
+    const zip = new JSZip();
+    for (const d of docs) zip.file(d.filePath, d.contentRaw ?? '');
+    return zip.generateAsync({ type: 'nodebuffer' });
+  }
+
   async exportZip(workspaceId: string): Promise<Buffer> {
     const JSZip = (await import('jszip')).default;
     const docs = await this.documentModel

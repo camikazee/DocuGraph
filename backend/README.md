@@ -131,6 +131,8 @@ src/
 | GET | `/workspaces/:id/documents/feed.atom` | Atom feed ostatnio zmienionych dokumentów |
 | GET | `/workspaces/:id/documents/export.html` | eksport całej dokumentacji do jednego, samowystarczalnego pliku HTML (read-only) |
 | GET | `/workspaces/:id/documents/export.zip` | eksport wielostronicowy — ZIP ze statycznym site (strona/dokument + `style.css` + `index.html`) |
+| GET | `/workspaces/:id/documents/export/source.zip` | eksport źródłowy — ZIP z surowymi `.md` (odwzorowanie katalogu) |
+| POST | `/workspaces/:id/documents/import.zip` | import ZIP z drzewem `.md` (multipart `file`), odwzorowuje strukturę |
 | GET | `/workspaces/:id/documents/notifications` | powiadomienia odbiorcy (`?unread=1` — tylko nieprzeczytane) |
 | GET | `/workspaces/:id/documents/notifications/count` | liczba nieprzeczytanych (`{ unread }`) |
 | POST | `/workspaces/:id/documents/notifications/:uuid/read` | oznacz jedno jako przeczytane |
