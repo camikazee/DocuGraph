@@ -89,7 +89,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 *The 20% that makes it feel finished.*
 
 - [x] **Frontend ESLint** — `next lint` configured (`next/core-web-vitals` + `next/typescript`, unused-vars as errors), runs at `--max-warnings=0` and gates CI. Migrated web fonts to `next/font` (self-hosted, no CDN `<link>`s) to clear the last lint warning
-- [ ] **Frontend test coverage** (components + key flows)
+- [x] **Frontend test coverage** (components + key flows) — Jest/RTL now covers the validators, the notification and access-label helpers, and full flows for the invite acceptance page (accept-when-signed-in, prompt-with-`next`-when-not, missing-token, expired) and the ShareDialog (URL-shown-once, active-link listing), on top of the existing auth / dashboard / account / Button / NavLink suites (10 suites, 43 tests). Runs in CI. *(Deeper flow coverage can keep growing.)*
 - [ ] **Accessibility audit** (keyboard, focus, contrast, reduced motion)
 - [ ] **Mobile/responsive polish**
 - [ ] **Onboarding & empty states** for every view
