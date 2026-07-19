@@ -292,9 +292,12 @@ function ReaderContent() {
   const crumbs = path.split('/');
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-bg text-fg2">
+    <div className="reader-print-root flex h-screen w-full overflow-hidden bg-bg text-fg2">
       {/* LEFT — doc tree */}
-      <aside className="flex w-[250px] flex-none flex-col border-r border-line bg-panel">
+      <aside
+        data-print-hide
+        className="flex w-[250px] flex-none flex-col border-r border-line bg-panel"
+      >
         <div className="flex items-center gap-2.5 border-b border-line2 px-[18px] py-4">
           <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-gradient-to-br from-acc to-blue-500">
             <LogoMark className="h-4 w-4 text-white" />
@@ -338,14 +341,17 @@ function ReaderContent() {
       </aside>
 
       {/* MIDDLE — content */}
-      <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[800px] px-14 py-12">
+      <main className="reader-print-main min-w-0 flex-1 overflow-y-auto">
+        <div className="reader-print-article mx-auto max-w-[800px] px-14 py-12">
           {forbidden && <NoAccess />}
           {notFound && <p className="text-fg3">Document not found.</p>}
           {doc && (
             <>
               {inVersion && (
-                <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-[12.5px] text-amber-300">
+                <div
+                  data-print-hide
+                  className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-[12.5px] text-amber-300"
+                >
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                     <path d="M8 4v4l2.5 1.5M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                   </svg>
@@ -356,7 +362,17 @@ function ReaderContent() {
                   — read-only.
                 </div>
               )}
-              <div className="mb-5 flex flex-wrap items-center gap-2 text-[13px] text-muted">
+              {/* Print-only header (branded) — shown in the PDF, not on screen */}
+              <div className="mb-4 hidden print:block">
+                <div className="text-[12px] text-fg3">
+                  {profile?.workspaces[0]?.name ?? 'DocuGraph'}
+                </div>
+                <div className="font-mono text-[12px] text-fg3">{path}</div>
+              </div>
+              <div
+                data-print-hide
+                className="mb-5 flex flex-wrap items-center gap-2 text-[13px] text-muted"
+              >
                 {crumbs.map((seg, i) => (
                   <span key={i} className="flex items-center gap-2">
                     <span className={i === crumbs.length - 1 ? 'text-fg2' : ''}>
@@ -411,6 +427,16 @@ function ReaderContent() {
                     <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2H3.5A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" stroke="var(--accfg)" strokeWidth="1.3" />
                   </svg>
                   {copied ? 'Copied' : 'Copy MD'}
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  title="Print or save this document as PDF"
+                  className="flex items-center gap-1.5 rounded-lg border border-capbd bg-capbg px-3 py-1.5 text-[12.5px] font-semibold text-fg2 transition hover:border-acc"
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6V2.5h8V6M4 12H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1M4 10h8v3.5H4V10Z" stroke="var(--accfg)" strokeWidth="1.2" strokeLinejoin="round" />
+                  </svg>
+                  PDF
                 </button>
                 <button
                   onClick={() => setRaw((r) => !r)}
@@ -533,7 +559,10 @@ function ReaderContent() {
       </main>
 
       {/* RIGHT — TOC + relations */}
-      <aside className="flex w-[260px] flex-none flex-col border-l border-line px-5 py-6">
+      <aside
+        data-print-hide
+        className="flex w-[260px] flex-none flex-col border-l border-line px-5 py-6"
+      >
         <ThemeSwitcher />
 
         <div className="mb-3.5 mt-6 text-[10.5px] font-bold uppercase tracking-[0.11em] text-muted">

@@ -79,6 +79,54 @@ html[data-theme='light'] {
   border-radius: 4px;
 }
 
+/* Print / Save-as-PDF: strip the app chrome and print just the document.
+   Used by the reader's "Save as PDF" button (window.print()). */
+@media print {
+  [data-print-hide] {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  /* The reader is a fixed-height flex layout on screen; unclip it for print. */
+  .reader-print-root {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .reader-print-main {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .reader-print-article {
+    max-width: none !important;
+  }
+  /* Legible on paper (the screen theme is dark). */
+  .reader-print-article,
+  .reader-print-article * {
+    color: #111 !important;
+  }
+  .reader-print-article pre {
+    background: #f6f8fa !important;
+    border: 1px solid #ddd !important;
+  }
+  .reader-print-article pre code {
+    color: #111 !important;
+  }
+  pre,
+  img,
+  table,
+  blockquote {
+    page-break-inside: avoid;
+  }
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+}
+
 /* Respect reduced-motion app-wide: neutralize transitions and animations for
    users who ask for it (spinners freeze, toasts just fade). */
 @media (prefers-reduced-motion: reduce) {
