@@ -94,13 +94,30 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [ ] **i18n** (the codebase already mixes EN/PL — pick a strategy)
 - [ ] **Inline editor upgrades** — live preview, link autocomplete, frontmatter helper
 
+## 🎯 Milestone 6 — Content in/out & personal workspace
+*Get whole trees in and out easily, and make the workspace personal. Ordered cheapest→heaviest.*
+
+- [ ] **Recently viewed** — per-user browsing history ("Recent" view). Read events are already captured per user, so this is mostly a query + view. *(small)*
+- [ ] **Favorites / bookmarks** — star a document (per-user), a Favorites view, a star toggle in the reader and the list. Modelled on watch. *(small–medium)*
+- [ ] **Source download (raw `.md` ZIP)** — download all docs as a ZIP of the raw Markdown with folders preserved (distinct from the rendered static-site export); "grab the whole directory". *(small — reuse JSZip)*
+- [ ] **ZIP import** — upload a `.zip` of a `.md` tree and expand it into the structure (paths preserved). *(small–medium — reuse JSZip)*
+- [ ] **Local directory upload** — pick or drag a folder from disk (`webkitdirectory` / folder drop) and mirror the whole tree via batch upsert. "Select a directory → it uploads the whole structure." *(medium)*
+- [ ] **Private Git import** — token auth + drop the 300-file cap (extends the current public-GitHub indexing). *(medium)*
+- [ ] **Per-resource access control** — per-folder / per-path permissions on top of workspace RBAC (Owner/Editor/Viewer already enforced). *(large)*
+
+## 🎯 Milestone 7 — Public demo showcase (do last)
+*Let anyone see it working straight from GitHub, once the features above exist.*
+
+- [ ] **Polished demo seed** — one-command install populating a realistic workspace (extend `backend/scripts/seed.mjs`).
+- [ ] **Demo walkthrough in the repo** — `docs/demo/` with current screenshots of the main views + step-by-step instructions, so the GitHub repo shows the product in practice. *(NB: this intentionally reverses the earlier "screenshots stay internal" decision — the owner now wants curated demo screenshots public.)*
+- [ ] **Optional live/preview** — a hosted or one-command `docker compose` demo people can click through.
+
 ---
 
 ## 💡 Backlog / ideas
 *Unscheduled; promote into a milestone when it earns its place.*
 
 - [ ] Real-time collaborative editing + presence
-- [ ] Per-folder / per-path permissions
 - [ ] AI assist: summarize, suggest links, detect duplicate/contradictory docs
 - [ ] Slack/Teams app: post on publish, search docs from chat
 - [ ] Import from existing docs (Notion / Confluence / GitBook)
