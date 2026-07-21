@@ -1,0 +1,101 @@
+# DocuGraph — one-command DEMO stack for your own server.
+#
+#   docker compose -f docker-compose.demo.yml up -d --build
+#
+#   → open   http://localhost:3002   (or http://<server-ip>:3002)
+#   → sign in: owner@demo.docugraph / Demo1234!  (also editor@ / viewer@)
+#   → emails (reset/invite) are caught by Mailpit at http://localhost:8025
+#
+# A realistic demo workspace is auto-seeded on first boot (idempotent — safe to
+# re-run). Browsing from another machine? Override the URLs, e.g.:
+#   NEXT_PUBLIC_API_URL=http://SERVER:3000/api/v1 APP_URL=http://SERVER:3002 \
+#   CORS_ORIGINS=http://SERVER:3002 docker compose -f docker-compose.demo.yml up -d --build
+#
+# NOT for production: inline demo secrets, no TLS. For real deployments use
+# docker-compose.portainer.yml + DEPLOY.md.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - demo-mongo:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      target: prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      MONGO_URI: mongodb://mongo:27017/docugraph
+      JWT_SECRET: demo-only-secret-not-for-production-0123456789
+      MEDIA_SECRET: demo-only-media-secret-not-for-production-0123456789
+      APP_URL: ${APP_URL:-http://localhost:3002}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3002}
+      WORKSPACE_ROOT: /data/workspaces
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      SMTP_FROM: DocuGraph <no-reply@docugraph.local>
+      # Relaxed limits so the seeder can register users + create docs in one go.
+      AUTH_THROTTLE_LIMIT: '100'
+      THROTTLE_LIMIT: '500'
+    volumes:
+      - demo-workspace:/data/workspaces
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # Catches transactional email so you can click reset/invite links in the demo.
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - '8025:8025'
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/v1}
+    restart: unless-stopped
+    ports:
+      - '3002:3000'
+    depends_on:
+      - backend
+
+  # One-shot: waits for the API, seeds the demo workspace, then exits.
+  seeder:
+    image: node:20-alpine
+    restart: 'no'
+    environment:
+      API_URL: http://backend:3000/api/v1
+    volumes:
+      - ./backend/scripts/seed.mjs:/seed.mjs:ro
+    command: ['node', '/seed.mjs']
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  demo-mongo:
+  demo-workspace:

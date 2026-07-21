@@ -1,13 +1,15 @@
 # DocuGraph — live demo & walkthrough
 
 A guided tour of DocuGraph with screenshots from the seeded demo workspace.
-Everything below runs locally with **two commands** — no accounts, no cloud.
+No accounts, no cloud.
 
-## Run it yourself (2 commands)
+## Run it yourself (one command)
+
+The demo stack builds everything and **auto-seeds** a realistic workspace on
+first boot — nothing else to run:
 
 ```bash
-docker compose up -d --build     # mongo + backend + frontend + mailpit
-cd backend && npm run seed       # demo workspace: users, docs, media, links
+docker compose -f docker-compose.demo.yml up -d --build
 ```
 
 Then open **http://localhost:3002** and sign in with a demo account
@@ -19,8 +21,30 @@ Then open **http://localhost:3002** and sign in with a demo account
 | editor@demo.docugraph   | Editor |
 | viewer@demo.docugraph   | Viewer |
 
-The seed is idempotent — re-run it anytime. For a clean slate:
-`docker compose down -v && docker compose up -d && cd backend && npm run seed`.
+Transactional email (reset/invite) is caught by **Mailpit** at
+http://localhost:8025. The seed is idempotent. Clean slate:
+`docker compose -f docker-compose.demo.yml down -v && docker compose -f docker-compose.demo.yml up -d --build`.
+
+**Standing it up on a server** (browsing from another machine): point the URLs
+at the host so the browser can reach the API:
+
+```bash
+NEXT_PUBLIC_API_URL=http://SERVER:3000/api/v1 \
+APP_URL=http://SERVER:3002 CORS_ORIGINS=http://SERVER:3002 \
+docker compose -f docker-compose.demo.yml up -d --build
+```
+
+> Demo only — inline demo secrets, no TLS. For a real deployment use
+> `docker-compose.portainer.yml` and `DEPLOY.md`.
+
+<details>
+<summary>Alternative: dev compose + manual seed</summary>
+
+```bash
+docker compose up -d --build     # mongo + backend + frontend + mailpit
+cd backend && npm run seed       # demo workspace: users, docs, media, links
+```
+</details>
 
 ---
 
