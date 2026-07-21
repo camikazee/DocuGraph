@@ -220,3 +220,59 @@ Notes:
 - **Updates:** Portainer → the stack → **Pull and redeploy** rebuilds from the
   latest commit.
 - Back up the two volumes + your secrets — see §7.
+
+## 9. CI build & deploy (Jenkins) — recommended for production
+
+**Build once in CI, push immutable images, deploy by pulling them.** Never
+build on the production host — the artifact you tested is the one you run, prod
+needs no toolchain, and rollback is just re-pointing a tag.
+
+Files:
+- `Jenkinsfile` — universal, parameterized pipeline (no hardcoded registry/URLs).
+- `docker-compose.prod.yml` — pulls pre-built images (`image:`, no `build:`).
+
+### Pipeline (`Jenkinsfile`)
+
+Stages: checkout → backend (lint · unit · e2e · build) → frontend (lint ·
+typecheck · unit · build) → **build & push images** → optional deploy webhook.
+Test stages run inside a `node:20` container, so the agent only needs Docker (+
+the Docker Pipeline plugin) and a registry credential.
+
+Job parameters (or set as global env with the same names):
+
+| Param | Meaning |
+| --- | --- |
+| `REGISTRY` | registry + namespace, e.g. `ghcr.io/acme` or `registry.example.com/docugraph` |
+| `REGISTRY_CREDENTIALS_ID` | Jenkins credentials (user/token) for the registry |
+| `NEXT_PUBLIC_API_URL` | public API URL **baked into the frontend image** (per environment) |
+| `RUN_E2E` | run backend e2e (in-memory Mongo) before building — default true |
+| `PUSH_LATEST` | also push `:latest` + the branch tag alongside the commit SHA |
+| `DEPLOY_WEBHOOK` | optional Portainer stack webhook to POST after a successful push |
+
+Images pushed: `${REGISTRY}/docugraph-backend:<sha>` and
+`…/docugraph-frontend:<sha>` (plus `:latest` and the branch tag when enabled).
+
+> **Frontend is per-environment.** `NEXT_PUBLIC_API_URL` is compiled in at build
+> time, so build a frontend image per target URL (e.g. a staging build and a
+> prod build). The backend image is environment-agnostic (configured at runtime).
+
+### Deploy the built images
+
+On the server (or in Portainer with `docker-compose.prod.yml`):
+
+```bash
+export REGISTRY=ghcr.io/acme TAG=<git-sha>     # the tag CI pushed
+# plus the runtime env from .env.portainer.example (JWT_SECRET, MEDIA_SECRET,
+# APP_URL, CORS_ORIGINS, …) — via env, an --env-file, or *_FILE secrets (§1)
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+**Portainer:** point the stack at `docker-compose.prod.yml`, set `REGISTRY` +
+`TAG` + the runtime env, and enable a **stack webhook**; put that URL in the
+pipeline's `DEPLOY_WEBHOOK` so a green build auto-redeploys.
+
+**Rollback:** set `TAG` to a previous SHA and `pull && up -d` again.
+
+**Promotion:** reuse the exact backend image across dev → staging → prod (only
+the runtime env differs); build a matching frontend image per environment URL.

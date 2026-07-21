@@ -41,6 +41,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] Docker Compose stack (Mongo + backend + frontend + Mailpit)
 - [x] Portainer stack — `docker-compose.portainer.yml` + `.env.portainer.example` build the whole project from the repo as one stack (env-driven, secrets-manager friendly); `DEPLOY.md §8`
 - [x] One-command demo stack — `docker-compose.demo.yml` builds everything and **auto-seeds** a realistic workspace on first boot (`docker compose -f docker-compose.demo.yml up -d --build`), URLs overridable for self-hosting
+- [x] CI/CD for prod — universal parameterized `Jenkinsfile` (test → build → push tagged images → optional deploy webhook) + `docker-compose.prod.yml` (pull pre-built images, no build on host); build-once/promote/rollback documented in `DEPLOY.md §9`
 - [x] 120 e2e tests, PolyForm Noncommercial license, DEPLOY.md + SECURITY.md
 - [x] Internal landing page (separate repo)
 

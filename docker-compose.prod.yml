@@ -1,0 +1,96 @@
+# DocuGraph — production stack (PULL pre-built images; no build on the host).
+#
+# Images are built & pushed by CI (see Jenkinsfile). Deploy by pulling a pinned
+# tag — never rebuild on the prod server.
+#
+#   export REGISTRY=ghcr.io/your-org TAG=<git-sha>
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#   # rollback = set TAG to a previous value and repeat.
+#
+# In Portainer: use this file, set env vars, and "Pull and redeploy".
+# Put a TLS reverse proxy in front (DEPLOY.md §3). Secrets: env vars or *_FILE
+# (Docker/Portainer secrets) — DEPLOY.md §1.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ${REGISTRY}/docugraph-backend:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      MONGO_URI: mongodb://mongo:27017/docugraph
+      # Required (env or *_FILE — see DEPLOY.md §1)
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_SECRET_FILE: ${JWT_SECRET_FILE:-}
+      MEDIA_SECRET: ${MEDIA_SECRET:-}
+      MEDIA_SECRET_FILE: ${MEDIA_SECRET_FILE:-}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      APP_URL: ${APP_URL}
+      # Optional
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      WORKSPACE_ROOT: /data/workspaces
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_PASS_FILE: ${SMTP_PASS_FILE:-}
+      SMTP_FROM: ${SMTP_FROM:-DocuGraph <no-reply@docugraph.local>}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID:-}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET:-}
+      SLACK_CALLBACK_URL: ${SLACK_CALLBACK_URL:-}
+      THROTTLE_TTL_MS: ${THROTTLE_TTL_MS:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+      AUTH_THROTTLE_TTL_MS: ${AUTH_THROTTLE_TTL_MS:-60000}
+      AUTH_THROTTLE_LIMIT: ${AUTH_THROTTLE_LIMIT:-10}
+    volumes:
+      - workspace-data:/data/workspaces
+    expose:
+      - '3000'
+    ports:
+      - '${BACKEND_PORT:-3000}:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    # NEXT_PUBLIC_API_URL is baked at build time in CI — the frontend image is
+    # per-environment. Deploy the tag built with the matching public API URL.
+    image: ${REGISTRY}/docugraph-frontend:${TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - '3000'
+    ports:
+      - '${FRONTEND_PORT:-3002}:3000'
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
+  workspace-data:
