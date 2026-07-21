@@ -39,6 +39,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] 3 themes (Light / Grey / Violet), Statistics dashboard
 - [x] Swagger (disabled in prod unless explicitly enabled)
 - [x] Docker Compose stack (Mongo + backend + frontend + Mailpit)
+- [x] Portainer stack — `docker-compose.portainer.yml` + `.env.portainer.example` build the whole project from the repo as one stack (env-driven, secrets-manager friendly); `DEPLOY.md §8`
 - [x] 120 e2e tests, PolyForm Noncommercial license, DEPLOY.md + SECURITY.md
 - [x] Internal landing page (separate repo)
 

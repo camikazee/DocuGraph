@@ -1,0 +1,90 @@
+# DocuGraph — Portainer stack (build the whole project from this repo).
+#
+# Portainer → Stacks → Add stack → "Repository":
+#   • Repository URL:      <this repo>
+#   • Compose path:        docker-compose.portainer.yml
+#   • Enable "Build from repository" (Portainer runs `docker compose build`)
+#   • Add the environment variables below (see .env.portainer.example)
+#   • Deploy.
+#
+# Put a reverse proxy (Caddy/Traefik/Nginx) with TLS in front — see DEPLOY.md §3.
+# Do NOT publish Mongo to the host; keep it on the internal network only.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      target: prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      MONGO_URI: mongodb://mongo:27017/docugraph
+      # --- required secrets/config (set in Portainer) ---
+      JWT_SECRET: ${JWT_SECRET}
+      MEDIA_SECRET: ${MEDIA_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      APP_URL: ${APP_URL}
+      # --- optional ---
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      WORKSPACE_ROOT: /data/workspaces
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      # SMTP (leave host empty to log emails instead of sending)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-DocuGraph <no-reply@docugraph.local>}
+      # OAuth (optional — fill to enable GitHub/Slack sign-in)
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID:-}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET:-}
+      SLACK_CALLBACK_URL: ${SLACK_CALLBACK_URL:-}
+      # Rate limiting (optional overrides)
+      THROTTLE_TTL_MS: ${THROTTLE_TTL_MS:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+      AUTH_THROTTLE_TTL_MS: ${AUTH_THROTTLE_TTL_MS:-60000}
+      AUTH_THROTTLE_LIMIT: ${AUTH_THROTTLE_LIMIT:-10}
+    volumes:
+      - workspace-data:/data/workspaces
+    expose:
+      - '3000'
+    ports:
+      # Publish only if you are NOT fronting it with a reverse proxy on the same host.
+      - '${BACKEND_PORT:-3000}:3000'
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        # NEXT_PUBLIC_* is baked at BUILD time — must be the public API URL the
+        # browser will call (e.g. https://api.docs.example.com/api/v1).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    restart: unless-stopped
+    expose:
+      - '3000'
+    ports:
+      - '${FRONTEND_PORT:-3002}:3000'
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
+  workspace-data:

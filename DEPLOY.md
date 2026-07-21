@@ -189,3 +189,34 @@ re-enter volume credentials and Git remotes afterwards.
   only need to back up the workspace volume + secrets.
 - **Test your restore.** A backup you have never restored is a hypothesis. Do a
   trial restore into a throwaway stack periodically.
+
+## 8. Deploy on Portainer (build one stack from this repo)
+
+Everything builds from this repository as a single stack — Mongo, backend, and
+frontend — using `docker-compose.portainer.yml`.
+
+1. **Portainer → Stacks → Add stack → Repository.**
+   - Repository URL: this repo (+ a deploy token if it's private).
+   - Compose path: `docker-compose.portainer.yml`.
+   - Turn on **Build from repository** so Portainer runs `docker compose build`
+     (the frontend/backend images are built from their `Dockerfile` `prod`
+     stages).
+2. **Environment variables** — add the ones from `.env.portainer.example`
+   (Portainer's "Advanced mode" lets you paste the whole file). Required:
+   `JWT_SECRET`, `MEDIA_SECRET`, `NEXT_PUBLIC_API_URL`, `APP_URL`,
+   `CORS_ORIGINS`. `NEXT_PUBLIC_API_URL` is **baked at build time**, so if you
+   change it you must **re-pull & rebuild** the stack, not just restart.
+3. **Deploy.** Mongo comes up first (healthcheck-gated), then backend, then
+   frontend. Data persists in the `mongo-data` and `workspace-data` volumes.
+
+Notes:
+- Front the two published ports with the reverse proxy from §3 (TLS). If the
+  proxy is on the same host/network you can drop the `ports:` mappings and route
+  to the services by name (`backend:3000`, `frontend:3000`) — they already
+  `expose` 3000.
+- **Secrets:** for stronger hygiene than stack env vars, use Portainer
+  **Secrets** (or Swarm secrets) and point `*_FILE` variables at the mount, e.g.
+  `JWT_SECRET_FILE=/run/secrets/jwt_secret` — see §1.
+- **Updates:** Portainer → the stack → **Pull and redeploy** rebuilds from the
+  latest commit.
+- Back up the two volumes + your secrets — see §7.
