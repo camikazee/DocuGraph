@@ -16,7 +16,7 @@ jobs:
     name: Installation (compose · installer · doctor)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate portable installation
         run: |
           bash scripts/compose-contract.test.sh
@@ -30,9 +30,9 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20.19.0'
           cache: npm
@@ -42,7 +42,7 @@ jobs:
 
       # Cache the mongod binary that mongodb-memory-server downloads for e2e.
       - name: Cache mongodb-memory-server binary
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/mongodb-binaries
           key: mongodb-binaries-${{ runner.os }}
@@ -60,9 +60,9 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20.19.0'
           cache: npm
