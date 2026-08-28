@@ -32,9 +32,6 @@ CMD ["npm", "run", "dev"]
 # ==============================================================================
 FROM base AS builder
 ENV NEXT_TELEMETRY_DISABLED=1
-# NEXT_PUBLIC_* są wkompilowywane na etapie build (czytane w przeglądarce).
-ARG NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY . .
 RUN npm run build
 
@@ -46,6 +43,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV NEXT_TELEMETRY_DISABLED=1
+# Runtime-only private URL. The browser always calls same-origin /api/v1.
+ENV DOCUGRAPH_API_UPSTREAM=http://backend:3000/api/v1
 
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 --ingroup nodejs nextjs

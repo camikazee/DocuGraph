@@ -42,7 +42,8 @@ describe('API client', () => {
     await expect(
       apiJson('/test', { method: 'POST', body: JSON.stringify({ a: 1 }) }),
     ).resolves.toEqual({ ok: true });
-    const [, init] = jest.mocked(fetch).mock.calls[0];
+    const [url, init] = jest.mocked(fetch).mock.calls[0];
+    expect(url).toBe('/api/v1/test');
     const headers = new Headers(init?.headers);
     expect(headers.get('authorization')).toBe('Bearer jwt-token');
     expect(headers.get('content-type')).toBe('application/json');
