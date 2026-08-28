@@ -1,16 +1,5 @@
-# DocuGraph — production stack (PULL pre-built images; no build on the host).
-#
-# Images are built & pushed by CI (see Jenkinsfile). Deploy by pulling a pinned
-# tag — never rebuild on the prod server.
-#
-#   export REGISTRY=ghcr.io/your-org TAG=<git-sha>
-#   docker compose -f docker-compose.prod.yml pull
-#   docker compose -f docker-compose.prod.yml up -d
-#   # rollback = set TAG to a previous value and repeat.
-#
-# In Portainer: use this file, set env vars, and "Pull and redeploy".
-# Put a TLS reverse proxy in front (DEPLOY.md §3). Secrets: env vars or *_FILE
-# (Docker/Portainer secrets) — DEPLOY.md §1.
+# Production stack using pre-built, environment-agnostic images.
+# Pin DOCUGRAPH_TAG to a release or immutable sha-* tag for production.
 services:
   mongo:
     image: mongo:7
@@ -18,27 +7,25 @@ services:
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: ['CMD', 'mongosh', '--eval', "db.runCommand({ ping: 1 })"]
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 1)']
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   backend:
-    image: ${REGISTRY}/docugraph-backend:${TAG:-latest}
+    image: ${DOCUGRAPH_REGISTRY:-ghcr.io/camikazee}/docugraph-backend:${DOCUGRAPH_TAG:-latest}
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: '3000'
       MONGO_URI: mongodb://mongo:27017/docugraph
-      # Required (env or *_FILE — see DEPLOY.md §1)
-      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_SECRET: ${JWT_SECRET:?Run ./scripts/install.sh to generate .env}
       JWT_SECRET_FILE: ${JWT_SECRET_FILE:-}
-      MEDIA_SECRET: ${MEDIA_SECRET:-}
+      MEDIA_SECRET: ${MEDIA_SECRET:?Run ./scripts/install.sh to generate .env}
       MEDIA_SECRET_FILE: ${MEDIA_SECRET_FILE:-}
-      CORS_ORIGINS: ${CORS_ORIGINS}
-      APP_URL: ${APP_URL}
-      # Optional
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      APP_URL: ${APP_URL:-http://localhost:3002}
+      CORS_ORIGINS: ${APP_URL:-http://localhost:3002}
       WORKSPACE_ROOT: /data/workspaces
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -62,34 +49,42 @@ services:
       - workspace-data:/data/workspaces
     expose:
       - '3000'
-    ports:
-      - '${BACKEND_PORT:-3000}:3000'
     healthcheck:
       test:
         [
           'CMD',
           'node',
           '-e',
-          "fetch('http://localhost:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://localhost:3000/api/v1/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
     depends_on:
       mongo:
         condition: service_healthy
 
   frontend:
-    # NEXT_PUBLIC_API_URL is baked at build time in CI — the frontend image is
-    # per-environment. Deploy the tag built with the matching public API URL.
-    image: ${REGISTRY}/docugraph-frontend:${TAG:-latest}
+    image: ${DOCUGRAPH_REGISTRY:-ghcr.io/camikazee}/docugraph-frontend:${DOCUGRAPH_TAG:-latest}
     restart: unless-stopped
-    expose:
-      - '3000'
+    environment:
+      DOCUGRAPH_API_UPSTREAM: http://backend:3000/api/v1
     ports:
-      - '${FRONTEND_PORT:-3002}:3000'
+      - '${DOCUGRAPH_PORT:-3002}:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   mongo-data:

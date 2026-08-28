@@ -7,9 +7,9 @@
 #   → emails (reset/invite) are caught by Mailpit at http://localhost:8025
 #
 # A realistic demo workspace is auto-seeded on first boot (idempotent — safe to
-# re-run). Browsing from another machine? Override the URLs, e.g.:
-#   NEXT_PUBLIC_API_URL=http://SERVER:3000/api/v1 APP_URL=http://SERVER:3002 \
-#   CORS_ORIGINS=http://SERVER:3002 docker compose -f docker-compose.demo.yml up -d --build
+# re-run). Browsing from another machine? Only APP_URL needs to change:
+#   APP_URL=http://SERVER:3002 \
+#   docker compose -f docker-compose.demo.yml up -d --build
 #
 # NOT for production: inline demo secrets, no TLS. For real deployments use
 # docker-compose.portainer.yml + DEPLOY.md.
@@ -75,13 +75,25 @@ services:
     build:
       context: ./frontend
       target: prod
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/v1}
     restart: unless-stopped
+    environment:
+      DOCUGRAPH_API_UPSTREAM: http://backend:3000/api/v1
     ports:
       - '3002:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   # One-shot: waits for the API, seeds the demo workspace, then exits.
   seeder:
