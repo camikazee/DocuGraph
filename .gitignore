@@ -12,3 +12,6 @@
 
 # ── lokalny stan narzędzi / edytora ───────────────────────────
 .claude/
+
+# ── lokalna konfiguracja instalacji (zawiera sekrety) ─────────
+/.env

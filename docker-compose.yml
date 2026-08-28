@@ -1,64 +1,98 @@
-# Pełny stack DocuGraph do podglądu: `docker compose up --build`
-# → frontend na http://localhost:3002, backend (API) na http://localhost:3000/api/v1
-# Obrazy budowane są z etapu `prod` (multi-stage) w backend/Dockerfile i frontend/Dockerfile.
+# Canonical DocuGraph self-hosted stack.
+#
+# Quick install: ./scripts/install.sh
+# Source build:   ./scripts/install.sh --build
+#
+# Only the frontend is published. Browser requests to /api/v1 are forwarded to
+# the backend over the private Compose network. MongoDB is never exposed.
 services:
   mongo:
     image: mongo:7
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
-    # Brak mapowania portu na host — uniknięcie konfliktu z innymi kontenerami.
     healthcheck:
-      test: ['CMD', 'mongosh', '--eval', "db.runCommand({ ping: 1 })"]
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 1)']
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   backend:
+    image: ${DOCUGRAPH_REGISTRY:-ghcr.io/camikazee}/docugraph-backend:${DOCUGRAPH_TAG:-latest}
     build:
       context: ./backend
       target: prod
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: '3000'
       MONGO_URI: mongodb://mongo:27017/docugraph
-      JWT_SECRET: dev-docker-secret-change-me-0123456789abcdef
-      JWT_EXPIRES_IN: 1d
-      CORS_ORIGINS: http://localhost:3002
+      JWT_SECRET: ${JWT_SECRET:?Run ./scripts/install.sh to generate .env}
+      MEDIA_SECRET: ${MEDIA_SECRET:?Run ./scripts/install.sh to generate .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      APP_URL: ${APP_URL:-http://localhost:3002}
+      CORS_ORIGINS: ${APP_URL:-http://localhost:3002}
       WORKSPACE_ROOT: /data/workspaces
-      APP_URL: http://localhost:3002
-      # Maile transakcyjne (reset hasła) → Mailpit (dev). Podgląd na :8025.
-      SMTP_HOST: mailpit
-      SMTP_PORT: '1025'
-      SMTP_FROM: DocuGraph <no-reply@docugraph.local>
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-DocuGraph <no-reply@docugraph.local>}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID:-}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET:-}
+      SLACK_CALLBACK_URL: ${SLACK_CALLBACK_URL:-}
+      THROTTLE_TTL_MS: ${THROTTLE_TTL_MS:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+      AUTH_THROTTLE_TTL_MS: ${AUTH_THROTTLE_TTL_MS:-60000}
+      AUTH_THROTTLE_LIMIT: ${AUTH_THROTTLE_LIMIT:-10}
     volumes:
       - workspace-data:/data/workspaces
-    ports:
-      - '3000:3000'
+    expose:
+      - '3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/api/v1/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     depends_on:
       mongo:
         condition: service_healthy
 
-  # Łapacz maili dla dev — SMTP na :1025, podgląd web/API na :8025.
-  mailpit:
-    image: axllent/mailpit:latest
-    restart: unless-stopped
-    ports:
-      - '8025:8025'
-
   frontend:
+    image: ${DOCUGRAPH_REGISTRY:-ghcr.io/camikazee}/docugraph-frontend:${DOCUGRAPH_TAG:-latest}
     build:
       context: ./frontend
       target: prod
-      args:
-        # Adres backendu widziany z przeglądarki (host).
-        NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
     restart: unless-stopped
+    environment:
+      DOCUGRAPH_API_UPSTREAM: http://backend:3000/api/v1
     ports:
-      - '3002:3000'
+      - '${DOCUGRAPH_PORT:-3002}:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   mongo-data:
