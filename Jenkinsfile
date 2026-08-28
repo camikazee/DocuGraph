@@ -18,8 +18,6 @@ pipeline {
       description: 'Registry + namespace, e.g. ghcr.io/acme or registry.example.com/docugraph')
     string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: 'registry-credentials',
       description: 'Jenkins credentials ID (username/password or token) for the registry')
-    string(name: 'NEXT_PUBLIC_API_URL', defaultValue: 'https://api.docs.example.com/api/v1',
-      description: 'Public API URL baked into the frontend image at BUILD time (per environment)')
     booleanParam(name: 'RUN_E2E', defaultValue: true,
       description: 'Run backend e2e (in-memory Mongo) before building images')
     booleanParam(name: 'PUSH_LATEST', defaultValue: true,
@@ -96,7 +94,7 @@ pipeline {
               "--target prod ./backend")
             def frontend = docker.build(
               "${env.FRONTEND_IMAGE}:${env.TAG}",
-              "--target prod --build-arg NEXT_PUBLIC_API_URL=${params.NEXT_PUBLIC_API_URL} ./frontend")
+              "--target prod ./frontend")
 
             backend.push()
             frontend.push()
