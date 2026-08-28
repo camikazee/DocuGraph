@@ -16,6 +16,8 @@ import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { Button } from '@/components/ui/Button';
 import { DocumentSnippetManager } from '@/components/DocumentSnippetManager';
 import { DocumentSnippetPicker } from '@/components/DocumentSnippetPicker';
+import { FrontmatterSchemaDialog } from '@/components/FrontmatterSchemaDialog';
+import { FrontmatterSchemaManager } from '@/components/FrontmatterSchemaManager';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
 import { prose } from '@/lib/prose';
@@ -24,6 +26,11 @@ import {
   listDocumentSnippets,
   type DocumentSnippet,
 } from '@/lib/api/document-snippets';
+import {
+  listFrontmatterSchemas,
+  type FrontmatterSchema,
+} from '@/lib/api/frontmatter-schemas';
+import type { FrontmatterApplication } from '@/lib/frontmatterSchema';
 import { insertMarkdownSnippet } from '@/lib/insertMarkdownSnippet';
 import { useProfile } from '@/lib/useProfile';
 
@@ -80,6 +87,9 @@ function EditorContent() {
   const [snippetPickerOpen, setSnippetPickerOpen] = useState(false);
   const [snippetManagerOpen, setSnippetManagerOpen] = useState(false);
   const snippetSelectionRef = useRef({ start: 0, end: 0 });
+  const [schemas, setSchemas] = useState<FrontmatterSchema[]>([]);
+  const [schemaDialogOpen, setSchemaDialogOpen] = useState(false);
+  const [schemaManagerOpen, setSchemaManagerOpen] = useState(false);
 
   // --- Link autocomplete (typing `](` suggests existing document paths) ---
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -154,18 +164,6 @@ function EditorContent() {
     }
   }, [content]);
 
-  /** Wstaw szablon front matter na górze, jeśli go jeszcze nie ma. */
-  function insertFrontmatter() {
-    if (/^---\r?\n/.test(content)) {
-      toast('This document already has front matter', 'error');
-      return;
-    }
-    const tpl = '---\ntitle: \ntags: []\nstatus: draft\n---\n\n';
-    caretRef.current = tpl.indexOf('title: ') + 'title: '.length;
-    setContent(tpl + content);
-    setSeg('split');
-  }
-
   const loadSnippets = useCallback(async () => {
     if (!ws) return;
     try {
@@ -174,6 +172,23 @@ function EditorContent() {
       setSnippets([]);
     }
   }, [ws]);
+
+  const loadSchemas = useCallback(async () => {
+    if (!ws) return;
+    try {
+      setSchemas(await listFrontmatterSchemas(ws));
+    } catch {
+      setSchemas([]);
+    }
+  }, [ws]);
+
+  function applyFrontmatter(result: FrontmatterApplication) {
+    caretRef.current = result.caret;
+    setContent(result.value);
+    setSchemaDialogOpen(false);
+    setAc(null);
+    if (seg === 'preview') setSeg('split');
+  }
 
   function openSnippetPicker() {
     const editor = taRef.current;
@@ -240,6 +255,10 @@ function EditorContent() {
   useEffect(() => {
     void loadSnippets();
   }, [loadSnippets]);
+
+  useEffect(() => {
+    void loadSchemas();
+  }, [loadSchemas]);
 
   // synchronizuj ścieżkę zapisu przy nawigacji między plikami
   useEffect(() => setFilePath(initialPath), [initialPath]);
@@ -387,8 +406,9 @@ function EditorContent() {
               </button>
             )}
             <button
-              onClick={insertFrontmatter}
-              title="Insert a front matter block (title, tags, status)"
+              type="button"
+              onClick={() => setSchemaDialogOpen(true)}
+              title="Apply a frontmatter schema"
               className="hidden items-center gap-1.5 rounded-[9px] border border-capbd bg-capbg px-2.5 py-1.5 text-[12px] font-semibold text-fg2 transition hover:border-acc sm:flex"
             >
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
@@ -626,6 +646,27 @@ function EditorContent() {
           open={snippetManagerOpen}
           onClose={() => setSnippetManagerOpen(false)}
           onChanged={loadSnippets}
+        />
+      )}
+      <FrontmatterSchemaDialog
+        schemas={schemas}
+        content={content}
+        open={schemaDialogOpen}
+        onClose={() => setSchemaDialogOpen(false)}
+        onApply={applyFrontmatter}
+        onManage={() => {
+          setSchemaDialogOpen(false);
+          setSchemaManagerOpen(true);
+        }}
+        canManage={canEdit}
+      />
+      {ws && canEdit && (
+        <FrontmatterSchemaManager
+          workspaceId={ws}
+          schemas={schemas}
+          open={schemaManagerOpen}
+          onClose={() => setSchemaManagerOpen(false)}
+          onChanged={loadSchemas}
         />
       )}
     </div>

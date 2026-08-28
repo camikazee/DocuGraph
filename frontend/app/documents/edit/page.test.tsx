@@ -7,6 +7,10 @@ import {
   listDocumentSnippets,
   type DocumentSnippet,
 } from '@/lib/api/document-snippets';
+import {
+  listFrontmatterSchemas,
+  type FrontmatterSchema,
+} from '@/lib/api/frontmatter-schemas';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ToastProvider } from '@/components/ui/Toast';
 import EditorPage from './page';
@@ -33,6 +37,9 @@ jest.mock('@/lib/auth', () => ({
 jest.mock('@/lib/api/document-snippets', () => ({
   listDocumentSnippets: jest.fn(),
 }));
+jest.mock('@/lib/api/frontmatter-schemas', () => ({
+  listFrontmatterSchemas: jest.fn(),
+}));
 jest.mock('@/components/DocumentSnippetManager', () => ({
   DocumentSnippetManager: ({
     open,
@@ -41,6 +48,15 @@ jest.mock('@/components/DocumentSnippetManager', () => ({
     open: boolean;
     onChanged: () => void;
   }) => (open ? <button onClick={onChanged}>Reload snippets</button> : null),
+}));
+jest.mock('@/components/FrontmatterSchemaManager', () => ({
+  FrontmatterSchemaManager: ({
+    open,
+    onChanged,
+  }: {
+    open: boolean;
+    onChanged: () => void;
+  }) => (open ? <button onClick={onChanged}>Reload schemas</button> : null),
 }));
 
 const PROFILE = {
@@ -60,6 +76,22 @@ const checklist: DocumentSnippet = {
   description: 'Task list',
   contentRaw: '- [ ] Item',
   builtIn: true,
+};
+const basicSchema: FrontmatterSchema = {
+  id: 'builtin:basic',
+  name: 'Basic document',
+  description: 'Common document metadata',
+  builtIn: true,
+  fields: [
+    {
+      key: 'title',
+      label: 'Title',
+      type: 'text',
+      required: false,
+      options: [],
+      defaultValue: '',
+    },
+  ],
 };
 
 function renderPage() {
@@ -88,6 +120,7 @@ beforeEach(() => {
     return Promise.resolve([]);
   });
   jest.mocked(listDocumentSnippets).mockResolvedValue([checklist]);
+  jest.mocked(listFrontmatterSchemas).mockResolvedValue([basicSchema]);
 });
 
 describe('Document editor snippets', () => {
@@ -134,5 +167,53 @@ describe('Document editor snippets', () => {
 
     expect(listDocumentSnippets).toHaveBeenCalledTimes(2);
     expect(editor).toHaveValue('# Work in progress');
+  });
+});
+
+describe('Document editor frontmatter schemas', () => {
+  it('applies schema frontmatter without losing body or unmanaged YAML', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const editor = await screen.findByRole('textbox', {
+      name: 'Markdown editor',
+    });
+    fireEvent.change(editor, {
+      target: { value: '---\nowner: platform\n---\n\n# Body' },
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Frontmatter' }));
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'API guide');
+    await user.click(screen.getByRole('button', { name: 'Apply frontmatter' }));
+
+    expect((editor as HTMLTextAreaElement).value).toContain('owner: platform');
+    expect((editor as HTMLTextAreaElement).value).toContain('title: "API guide"');
+    expect((editor as HTMLTextAreaElement).value).toContain('# Body');
+    await waitFor(() => expect(editor).toHaveFocus());
+  });
+
+  it('reloads schema management without changing the draft', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const editor = await screen.findByRole('textbox', {
+      name: 'Markdown editor',
+    });
+    fireEvent.change(editor, { target: { value: '# Unsaved draft' } });
+
+    await user.click(screen.getByRole('button', { name: 'Frontmatter' }));
+    await user.click(screen.getByRole('button', { name: 'Manage schemas' }));
+    await user.click(screen.getByRole('button', { name: 'Reload schemas' }));
+
+    expect(listFrontmatterSchemas).toHaveBeenCalledTimes(2);
+    expect(editor).toHaveValue('# Unsaved draft');
+  });
+
+  it('keeps the editor and existing save path usable when schema loading fails', async () => {
+    jest.mocked(listFrontmatterSchemas).mockRejectedValue(new Error('offline'));
+    renderPage();
+
+    expect(
+      await screen.findByRole('textbox', { name: 'Markdown editor' }),
+    ).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 });

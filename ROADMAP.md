@@ -134,5 +134,8 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
   tenant-scoped workspace Markdown fragments at the caret/current selection;
   Owner/Editor manage custom snippets, while persistence still uses the normal
   document save pipeline.
-- [ ] Custom frontmatter schemas
+- [x] **Custom frontmatter schemas** — one zero-setup built-in plus
+  tenant-scoped Owner/Editor-managed schemas generate safe browser forms for
+  six bounded field types; applying preserves unmanaged YAML and Markdown and
+  persists only through the normal document save pipeline.
 - [ ] Analytics: most-read, dead pages, search-with-no-results

@@ -27,8 +27,13 @@ For the full stack (backend + Mongo + Mailpit) plus demo data, use the
   metadata, history). New documents can start from built-in or reusable
   workspace templates; Owner/Editor can manage custom templates in the same
   form. The editor also inserts built-in or workspace Markdown snippets at the
-  current selection and lets Owner/Editor manage the reusable library. Template
-  and snippet output remains editable and uses the normal save action.
+  current selection and lets Owner/Editor manage the reusable library. A
+  zero-setup frontmatter schema and tenant-scoped custom schemas generate
+  labelled controls for `text`, `number`, `boolean`, `date`, `select`, and
+  `list` fields. Applying a schema updates supported fields in the browser while
+  preserving unmanaged YAML and the Markdown body. Template, snippet, and
+  schema output remains editable and persists only through the normal Save
+  action.
 - **Structure builder** — drag-and-drop folder / sidebar organization.
 - **Graph** — interactive link graph with broken-link detection.
 - **Search** — full-text with faceting + a `⌘K` command palette.

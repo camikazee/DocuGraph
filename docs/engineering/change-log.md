@@ -3,6 +3,17 @@
 This records substantial engineering changes and their verification. It does
 not replace Git history or the product roadmap.
 
+## 2026-08-28 — Custom frontmatter schemas
+
+- Added an immutable, zero-setup basic metadata schema and tenant-scoped custom
+  schemas managed by workspace Owners and Editors.
+- Added accessible editor forms for text, number, boolean, date, select, and
+  list fields with advisory required/type/option validation before application.
+- Preserved unmanaged YAML and Markdown bodies when applying supported fields;
+  changes remain browser-only until the normal document Save action.
+- Kept Git sync, CI/API writes, ZIP import, and existing documents compatible:
+  schema definitions do not intercept or gate the filesystem-first pipeline.
+
 ## 2026-08-28 — Reusable document snippets
 
 - Added three immutable, zero-setup Markdown snippets and tenant-scoped custom

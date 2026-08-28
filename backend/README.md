@@ -12,6 +12,9 @@ Backend dla **DocuGraph** — platformy SaaS do dokumentacji deweloperskiej (Mar
   per workspace, bez dodatkowego silnika szablonów.
 - **Fragmenty Markdown** — trzy gotowe snippety oraz biblioteka własnych,
   wielokrotnego użytku fragmentów izolowanych per workspace.
+- **Schematy frontmatter** — wbudowany schemat bez konfiguracji oraz własne,
+  izolowane per workspace definicje pól `text`, `number`, `boolean`, `date`,
+  `select` i `list`.
 - **Graf i jakość** — graf linków, raport zepsutych linków + autofix, sieroty.
 - **Wyszukiwanie** — pełnotekstowe (MongoDB `$text`).
 - **Media** — pluggable wolumeny (Local / S3 / FTP/SFTP), upload, przenoszenie
@@ -76,6 +79,7 @@ src/
 ├── documents/   # pipeline .md, graf, broken-links, search, webhooki, publish
 ├── document-templates/ # wbudowane + własne szablony workspace
 ├── document-snippets/  # wbudowane + własne fragmenty Markdown workspace
+├── frontmatter-schemas/ # wbudowane + własne schematy metadanych workspace
 └── media/       # wolumeny (local/s3/ftp), assety, serwowanie publiczne
 ```
 
@@ -175,6 +179,22 @@ pipeline.
 Wbudowane fragmenty z identyfikatorami `builtin:` są niezmienne i dostępne bez
 konfiguracji. Wstawienie fragmentu zmienia wyłącznie treść w przeglądarce;
 dokument trafia na dysk i do indeksu dopiero przez zwykły zapis dokumentu.
+
+### Schematy frontmatter (JWT)
+
+| Metoda | Ścieżka | Rola |
+|---|---|---|
+| GET | `/workspaces/:id/frontmatter-schemas` | każdy członek workspace |
+| POST | `/workspaces/:id/frontmatter-schemas` | Owner/Editor |
+| PATCH | `/workspaces/:id/frontmatter-schemas/:schemaId` | Owner/Editor; tylko własne schematy |
+| DELETE | `/workspaces/:id/frontmatter-schemas/:schemaId` | Owner/Editor; tylko własne schematy |
+
+Schematy obsługują dokładnie sześć typów pól: `text`, `number`, `boolean`,
+`date`, `select` i `list`. Wbudowany identyfikator `builtin:basic` jest
+niezmienny i dostępny bez konfiguracji. API przechowuje wyłącznie definicje
+formularzy edytora: zastosowanie schematu aktualizuje obsługiwane pola w
+przeglądarce, zachowuje niezarządzany YAML i treść Markdown, a dokument trafia
+do filesystem-first pipeline dopiero po użyciu zwykłego Save.
 
 ### Bramka jakości w CI
 
