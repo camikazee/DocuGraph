@@ -20,6 +20,7 @@ import { AccessModule } from './access/access.module';
 import { ErrorLogModule } from './error-log/error-log.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { JobsModule } from './jobs/jobs.module';
+import { DocumentTemplatesModule } from './document-templates/document-templates.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { JobsModule } from './jobs/jobs.module';
     MediaModule,
     ErrorLogModule,
     JobsModule,
+    DocumentTemplatesModule,
   ],
   providers: [
     // Globalny rate limiting na wszystkie endpointy (chroni m.in. logowanie).

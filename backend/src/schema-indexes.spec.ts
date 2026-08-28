@@ -6,6 +6,7 @@ import { InvitationSchema } from './invitations/schemas/invitation.schema';
 import { ApiKeySchema } from './api-keys/schemas/api-key.schema';
 import { DocumentSchema } from './documents/schemas/document.schema';
 import { JobSchema } from './jobs/schemas/job.schema';
+import { DocumentTemplateSchema } from './document-templates/schemas/document-template.schema';
 
 /** Czy schema deklaruje indeks o danym kształcie pól (i opcjonalnie unique). */
 function hasIndex(
@@ -71,5 +72,15 @@ describe('Schematy — indeksy i ograniczenia', () => {
 
   it('Job.idempotencyKey jest unikalny', () => {
     expect(JobSchema.path('idempotencyKey').options.unique).toBe(true);
+  });
+
+  it('DocumentTemplate ma unikalną nazwę w workspace', () => {
+    expect(
+      hasIndex(
+        DocumentTemplateSchema,
+        { workspaceId: 1, name: 1 },
+        { unique: true },
+      ),
+    ).toBe(true);
   });
 });

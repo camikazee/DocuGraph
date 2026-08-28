@@ -27,3 +27,11 @@ error. Retryable background work carries an idempotency key.
 Liveness reports the process; readiness verifies data services. Consistency
 diagnostics are authenticated, tenant-scoped, read-only, and never repair data
 implicitly.
+
+## Document templates
+
+`GET /workspaces/:id/document-templates` returns stable objects with `id`,
+`name`, `description`, `suggestedPath`, `contentRaw`, and `builtIn`. Built-in ids
+start with `builtin:` and are immutable. Custom templates are scoped to one
+workspace; Owner and Editor may create, update, and delete them, while every
+workspace member may list them. Template responses never expose MongoDB ids.
