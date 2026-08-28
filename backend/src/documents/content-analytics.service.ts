@@ -112,9 +112,16 @@ export class ContentAnalyticsService {
       visibleDocuments.map((document) => document.filePath),
     );
 
-    const [readRows, searchRows] = await Promise.all([
+    const [readRows, searchRows, zeroResultSearches] = await Promise.all([
       this.aggregateReads(internalWorkspaceId, cutoff),
       this.aggregateSearches(internalWorkspaceId, cutoff),
+      this.eventModel
+        .countDocuments({
+          workspaceId: internalWorkspaceId,
+          kind: 'search_zero',
+          createdAt: { $gte: cutoff },
+        })
+        .exec(),
     ]);
     const visibleReadRows = readRows.filter((row) => visiblePaths.has(row._id));
     const readsByPath = new Map(visibleReadRows.map((row) => [row._id, row]));
@@ -181,10 +188,7 @@ export class ContentAnalyticsService {
       ),
       uniqueReaders: readerIds.size,
       deadPageCount: allDeadPages.length,
-      zeroResultSearches: searchesWithoutResults.reduce(
-        (total, row) => total + row.count,
-        0,
-      ),
+      zeroResultSearches,
       mostRead,
       deadPages: allDeadPages.slice(0, 10),
       searchesWithoutResults,

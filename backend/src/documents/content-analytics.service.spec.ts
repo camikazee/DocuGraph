@@ -14,6 +14,10 @@ function query<T>(value: T) {
   };
 }
 
+function countQuery(value: number) {
+  return { exec: jest.fn().mockResolvedValue(value) };
+}
+
 function doc(filePath: string, title: string, createdAt: string) {
   return {
     filePath,
@@ -25,12 +29,17 @@ function doc(filePath: string, title: string, createdAt: string) {
 
 describe('ContentAnalyticsService', () => {
   const documentModel = { find: jest.fn() };
-  const eventModel = { create: jest.fn(), aggregate: jest.fn() };
+  const eventModel = {
+    create: jest.fn(),
+    aggregate: jest.fn(),
+    countDocuments: jest.fn(),
+  };
   let service: ContentAnalyticsService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     jest.useFakeTimers().setSystemTime(new Date('2026-08-28T12:00:00.000Z'));
+    eventModel.countDocuments.mockReturnValue(countQuery(0));
     const module = await Test.createTestingModule({
       providers: [
         ContentAnalyticsService,
@@ -105,6 +114,7 @@ describe('ContentAnalyticsService', () => {
           lastSearchedAt: new Date('2026-08-28T00:00:00.000Z'),
         },
       ]);
+    eventModel.countDocuments.mockReturnValue(countQuery(3));
 
     const result = await service.get('64a000000000000000000001', 30, (path) =>
       path.startsWith('private/') ? 'none' : 'read',
@@ -152,6 +162,28 @@ describe('ContentAnalyticsService', () => {
     });
     const searchPipeline = eventModel.aggregate.mock.calls[1][0];
     expect(searchPipeline.at(-1)).toEqual({ $limit: 10 });
+  });
+
+  it('counts every missed search while limiting its ranked query list', async () => {
+    documentModel.find.mockReturnValue(query([]));
+    eventModel.aggregate.mockResolvedValueOnce([]).mockResolvedValueOnce(
+      Array.from({ length: 10 }, (_, index) => ({
+        _id: `query ${index}`,
+        count: 2,
+        lastSearchedAt: new Date('2026-08-28T00:00:00.000Z'),
+      })),
+    );
+    eventModel.countDocuments.mockReturnValue(countQuery(42));
+
+    const result = await service.get('64a000000000000000000001', 30);
+
+    expect(result.searchesWithoutResults).toHaveLength(10);
+    expect(result.zeroResultSearches).toBe(42);
+    expect(eventModel.countDocuments).toHaveBeenCalledWith({
+      workspaceId: new Types.ObjectId('64a000000000000000000001'),
+      kind: 'search_zero',
+      createdAt: { $gte: new Date('2026-07-29T12:00:00.000Z') },
+    });
   });
 
   it('excludes new documents from dead pages and limits ranked lists to ten', async () => {
