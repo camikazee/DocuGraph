@@ -101,6 +101,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] **Onboarding & empty states** — the shared `Loader` empty state gained a CTA slot; the documents page now tells a brand-new workspace apart from a filtered-empty list and shows a real first-run onboarding (New document / Import folder / Connect a repo) instead of "no documents match"; the graph shows a guided empty state linking to documents. Covered by a documents-page test (first-run vs populated). Existing views (media, notifications, audit) already had empty states.
 - [x] **i18n** — decided: **product/UI language is English**, no i18n library (see `docs/decisions/0001-product-ui-language-english.md`). An audit confirmed the frontend has no Polish user-facing strings; the EN/PL mix is only code comments, test names, and commit messages (kept Polish by convention). Any non-English UI string is now treated as a bug; the migration path to multi-locale (`next-intl`) is recorded for a future ADR if ever needed.
 - [x] **Inline editor upgrades** — live preview already shipped (edit/preview/split with real-time render); added **link autocomplete** (typing `](` suggests existing documents by title/path — ↑↓/Enter/Tab to insert, Esc to dismiss, mouse too) and a **front-matter helper** (one-click insert of a `title/tags/status` block when a doc has none).
+- [x] **Document templates** — new documents can start from three dependency-free built-ins (how-to, API reference, ADR) or reusable custom templates isolated per workspace. Owner/Editor manage custom templates in an accessible modal; applying one only prefills the editable path and Markdown, then uses the normal filesystem-first save pipeline.
 
 ## 🎯 Milestone 6 — Content in/out & personal workspace
 *Get whole trees in and out easily, and make the workspace personal. Ordered cheapest→heaviest.*
@@ -129,5 +130,6 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [ ] AI assist: summarize, suggest links, detect duplicate/contradictory docs
 - [ ] Slack/Teams app: post on publish, search docs from chat
 - [ ] Import from existing docs (Notion / Confluence / GitBook)
-- [ ] Templates & snippets, custom frontmatter schemas
+- [ ] Reusable snippets
+- [ ] Custom frontmatter schemas
 - [ ] Analytics: most-read, dead pages, search-with-no-results

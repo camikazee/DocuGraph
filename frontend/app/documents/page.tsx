@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Loader } from '@/components/ui/Loader';
+import { DocumentTemplateManager } from '@/components/DocumentTemplateManager';
+import { DocumentTemplatePicker } from '@/components/DocumentTemplatePicker';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
 import { apiFetch, ApiError } from '@/lib/api';
@@ -15,6 +17,10 @@ import {
   exportDocuments,
   importDocumentsZip,
 } from '@/lib/api/documents';
+import {
+  listDocumentTemplates,
+  type DocumentTemplate,
+} from '@/lib/api/document-templates';
 import { required } from '@/lib/validation';
 import { useProfile } from '@/lib/useProfile';
 
@@ -106,6 +112,10 @@ export default function DocumentsPage() {
   }>({});
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
 
   // Download the workspace docs: single HTML file, multi-page static site (ZIP),
   // or the raw Markdown source (ZIP, folder structure preserved).
@@ -202,9 +212,26 @@ export default function DocumentsPage() {
     setOwners(Object.fromEntries(members.map((m) => [m.userId, m.name])));
   }, [ws]);
 
+  const loadTemplates = useCallback(async () => {
+    if (!ws) return;
+    setTemplatesLoading(true);
+    try {
+      setTemplates(await listDocumentTemplates(ws));
+    } catch {
+      // Template discovery is optional; blank document creation remains usable.
+      setTemplates([]);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, [ws]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadTemplates();
+  }, [loadTemplates]);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -310,6 +337,7 @@ export default function DocumentsPage() {
       setShowForm(false);
       setFilePath('');
       setContent('');
+      setSelectedTemplateId('');
       setFieldErrors({});
       await load();
     } catch (err) {
@@ -554,6 +582,32 @@ export default function DocumentsPage() {
       {showForm && (
         <Card className="mb-4">
           <form onSubmit={createDoc} noValidate className="grid gap-4">
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <DocumentTemplatePicker
+                  templates={templates}
+                  value={selectedTemplateId}
+                  disabled={templatesLoading}
+                  onSelect={(template) => {
+                    setSelectedTemplateId(template?.id ?? '');
+                    if (!template) return;
+                    setFilePath(template.suggestedPath);
+                    setContent(template.contentRaw);
+                    setFieldErrors({});
+                  }}
+                />
+              </div>
+              {canEdit && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="mb-5 whitespace-nowrap"
+                  onClick={() => setTemplateManagerOpen(true)}
+                >
+                  Manage templates
+                </Button>
+              )}
+            </div>
             <Input
               label="File path"
               value={filePath}
@@ -583,12 +637,32 @@ export default function DocumentsPage() {
               <Button type="submit" disabled={saving}>
                 {saving ? 'Saving…' : 'Save document'}
               </Button>
-              <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setShowForm(false);
+                  setSelectedTemplateId('');
+                  setFilePath('');
+                  setContent('');
+                  setFieldErrors({});
+                }}
+              >
                 Cancel
               </Button>
             </div>
           </form>
         </Card>
+      )}
+
+      {ws && canEdit && (
+        <DocumentTemplateManager
+          workspaceId={ws}
+          templates={templates}
+          open={templateManagerOpen}
+          onClose={() => setTemplateManagerOpen(false)}
+          onChanged={loadTemplates}
+        />
       )}
 
       {/* table (scrolls horizontally on narrow screens) */}

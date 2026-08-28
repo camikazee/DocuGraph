@@ -8,6 +8,8 @@ Backend dla **DocuGraph** — platformy SaaS do dokumentacji deweloperskiej (Mar
   Owner/Editor/Viewer, zaproszenia, tokeny CI/CD, izolacja tenantów, reset hasła.
 - **Document pipeline** — dwufazowy zapis (plik `.md` na dysku + mirror w MongoDB),
   parser front matter/HTML/linków, rewizje i historia, komentarze, przenoszenie.
+- **Szablony dokumentów** — trzy gotowe wzorce oraz własne szablony izolowane
+  per workspace, bez dodatkowego silnika szablonów.
 - **Graf i jakość** — graf linków, raport zepsutych linków + autofix, sieroty.
 - **Wyszukiwanie** — pełnotekstowe (MongoDB `$text`).
 - **Media** — pluggable wolumeny (Local / S3 / FTP/SFTP), upload, przenoszenie
@@ -70,6 +72,7 @@ src/
 ├── invitations/ # zaproszenia zespołu
 ├── api-keys/    # tokeny CI/CD + endpointy /ci
 ├── documents/   # pipeline .md, graf, broken-links, search, webhooki, publish
+├── document-templates/ # wbudowane + własne szablony workspace
 └── media/       # wolumeny (local/s3/ftp), assety, serwowanie publiczne
 ```
 
@@ -142,6 +145,20 @@ src/
 | GET | `/workspaces/:id/documents/broken-links` | raport zepsutych linków + propozycje naprawy |
 | POST | `/workspaces/:id/documents/broken-links/fix` | napraw pojedynczy link `{ from, to }` |
 | POST | `/workspaces/:id/documents/broken-links/fix-all` | napraw zbiorczo wszystkie rozwiązywalne linki (`{ fixedCount, skippedCount, fixed, skipped }`) |
+
+### Szablony dokumentów (JWT)
+
+| Metoda | Ścieżka | Rola |
+|---|---|---|
+| GET | `/workspaces/:id/document-templates` | każdy członek workspace |
+| POST | `/workspaces/:id/document-templates` | Owner/Editor |
+| PATCH | `/workspaces/:id/document-templates/:templateId` | Owner/Editor; tylko własne szablony |
+| DELETE | `/workspaces/:id/document-templates/:templateId` | Owner/Editor; tylko własne szablony |
+
+Id zaczynające się od `builtin:` oznaczają niezmienne szablony dostarczane z
+aplikacją. Własne szablony trafiają do MongoDB, ale użycie szablonu jedynie
+wypełnia formularz — dokument nadal zapisuje standardowy filesystem-first
+pipeline.
 
 ### Bramka jakości w CI
 

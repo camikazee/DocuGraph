@@ -24,7 +24,9 @@ For the full stack (backend + Mongo + Mailpit) plus demo data, use the
 - **Dashboard** — health summary (stale / broken / orphan), activity, watching.
 - **Documents** — list with filters, **Reader** (rendered Markdown, TOC,
   related docs / backlinks) and a split-pane **Editor** (Markdown ↔ preview,
-  metadata, history).
+  metadata, history). New documents can start from built-in or reusable
+  workspace templates; Owner/Editor can manage custom templates in the same
+  form, and all generated Markdown remains editable before saving.
 - **Structure builder** — drag-and-drop folder / sidebar organization.
 - **Graph** — interactive link graph with broken-link detection.
 - **Search** — full-text with faceting + a `⌘K` command palette.
