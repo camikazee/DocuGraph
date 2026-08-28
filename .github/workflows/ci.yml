@@ -12,6 +12,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  installation:
+    name: Installation (compose · installer · doctor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate portable installation
+        run: |
+          bash scripts/compose-contract.test.sh
+          bash scripts/install.test.sh
+          bash scripts/doctor.test.sh
+
   backend:
     name: Backend (lint · unit · e2e · build)
     runs-on: ubuntu-latest
