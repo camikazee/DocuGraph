@@ -9,6 +9,7 @@ import { JobSchema } from './jobs/schemas/job.schema';
 import { DocumentTemplateSchema } from './document-templates/schemas/document-template.schema';
 import { DocumentSnippetSchema } from './document-snippets/schemas/document-snippet.schema';
 import { FrontmatterSchemaSchema } from './frontmatter-schemas/schemas/frontmatter-schema.schema';
+import { EventSchema } from './documents/schemas/event.schema';
 
 /** Czy schema deklaruje indeks o danym kształcie pól (i opcjonalnie unique). */
 function hasIndex(
@@ -103,6 +104,17 @@ describe('Schematy — indeksy i ograniczenia', () => {
         { workspaceId: 1, name: 1 },
         { unique: true },
       ),
+    ).toBe(true);
+  });
+
+  it('Event has the content analytics aggregation index', () => {
+    expect(
+      hasIndex(EventSchema, {
+        workspaceId: 1,
+        kind: 1,
+        query: 1,
+        createdAt: -1,
+      }),
     ).toBe(true);
   });
 });

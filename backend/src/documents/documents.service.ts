@@ -1114,6 +1114,7 @@ export class DocumentsService implements OnModuleInit {
     let totalDuration = 0;
     let durationSamples = 0;
     for (const e of reads) {
+      if (!e.filePath) continue;
       readsPerDoc.set(e.filePath, (readsPerDoc.get(e.filePath) ?? 0) + 1);
       if (e.durationMs > 0) {
         totalDuration += e.durationMs;

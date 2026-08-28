@@ -13,8 +13,11 @@ export class Event {
   })
   workspaceId: Types.ObjectId;
 
-  @Prop({ required: true })
-  filePath: string;
+  @Prop({ type: String, default: null })
+  filePath: string | null;
+
+  @Prop({ type: String, default: null, maxlength: 160 })
+  query: string | null;
 
   @Prop({ default: 'read' })
   kind: string;
@@ -30,3 +33,4 @@ export class Event {
 export const EventSchema = SchemaFactory.createForClass(Event);
 EventSchema.index({ workspaceId: 1, kind: 1, createdAt: -1 });
 EventSchema.index({ workspaceId: 1, filePath: 1 });
+EventSchema.index({ workspaceId: 1, kind: 1, query: 1, createdAt: -1 });

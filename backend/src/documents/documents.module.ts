@@ -42,6 +42,7 @@ import { MailerModule } from '../common/mailer/mailer.module';
 import { NotificationPreferencesModule } from '../notification-preferences/notification-preferences.module';
 import { MediaModule } from '../media/media.module';
 import { AccessModule } from '../access/access.module';
+import { ContentAnalyticsService } from './content-analytics.service';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { AccessModule } from '../access/access.module';
     AutoPublishService,
     PublishDocumentsService,
     DocumentConsistencyService,
+    ContentAnalyticsService,
     DigestCron,
   ],
 })
