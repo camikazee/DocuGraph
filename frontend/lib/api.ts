@@ -1,7 +1,8 @@
 import { getToken } from './auth';
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+// Containers use the same-origin Next.js gateway so one image works under any
+// public domain. Native frontend development may still override the API URL.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1';
 
 export class ApiError extends Error {
   constructor(
