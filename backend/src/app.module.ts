@@ -21,6 +21,7 @@ import { ErrorLogModule } from './error-log/error-log.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { JobsModule } from './jobs/jobs.module';
 import { DocumentTemplatesModule } from './document-templates/document-templates.module';
+import { DocumentSnippetsModule } from './document-snippets/document-snippets.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { DocumentTemplatesModule } from './document-templates/document-templates
     ErrorLogModule,
     JobsModule,
     DocumentTemplatesModule,
+    DocumentSnippetsModule,
   ],
   providers: [
     // Globalny rate limiting na wszystkie endpointy (chroni m.in. logowanie).

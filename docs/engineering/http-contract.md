@@ -35,3 +35,11 @@ implicitly.
 start with `builtin:` and are immutable. Custom templates are scoped to one
 workspace; Owner and Editor may create, update, and delete them, while every
 workspace member may list them. Template responses never expose MongoDB ids.
+
+## Document snippets
+
+`GET /workspaces/:id/document-snippets` returns stable objects with `id`,
+`name`, `description`, `contentRaw`, and `builtIn`. Built-in ids start with
+`builtin:` and are immutable. Custom snippets are tenant-scoped; Owner and
+Editor may create, update, and delete them, while every workspace member may
+list them. Snippet responses never expose MongoDB ids.

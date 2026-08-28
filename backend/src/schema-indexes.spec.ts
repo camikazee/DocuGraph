@@ -7,6 +7,7 @@ import { ApiKeySchema } from './api-keys/schemas/api-key.schema';
 import { DocumentSchema } from './documents/schemas/document.schema';
 import { JobSchema } from './jobs/schemas/job.schema';
 import { DocumentTemplateSchema } from './document-templates/schemas/document-template.schema';
+import { DocumentSnippetSchema } from './document-snippets/schemas/document-snippet.schema';
 
 /** Czy schema deklaruje indeks o danym kształcie pól (i opcjonalnie unique). */
 function hasIndex(
@@ -78,6 +79,16 @@ describe('Schematy — indeksy i ograniczenia', () => {
     expect(
       hasIndex(
         DocumentTemplateSchema,
+        { workspaceId: 1, name: 1 },
+        { unique: true },
+      ),
+    ).toBe(true);
+  });
+
+  it('DocumentSnippet ma unikalną nazwę w workspace', () => {
+    expect(
+      hasIndex(
+        DocumentSnippetSchema,
         { workspaceId: 1, name: 1 },
         { unique: true },
       ),
