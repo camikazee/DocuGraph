@@ -6,9 +6,10 @@ import { Modal } from '@/components/ui/Modal';
 import { Loader } from '@/components/ui/Loader';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
-import { apiBaseUrl, apiFetch, ApiError } from '@/lib/api';
-import { getToken } from '@/lib/auth';
+import { apiBaseUrl, apiFetch, ApiError, isAbortError } from '@/lib/api';
+import { uploadAsset } from '@/lib/api/media';
 import { useProfile } from '@/lib/useProfile';
+import { useLatestRequest } from '@/lib/useLatestRequest';
 
 interface Volume {
   id: string;
@@ -96,22 +97,34 @@ export default function MediaPage() {
   const PAGE = 40;
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const requests = useLatestRequest();
 
   const load = useCallback(async () => {
     if (!ws) return;
-    const [v, a, o] = await Promise.all([
-      apiFetch<Volume[]>(`/workspaces/${ws}/volumes`).catch(() => []),
-      apiFetch<Asset[]>(
-        `/workspaces/${ws}/assets?filter=${filter}&limit=${PAGE}`,
-      ).catch(() => []),
-      apiFetch<Overview>(`/workspaces/${ws}/assets/overview`).catch(() => null),
-    ]);
-    setVolumes(v);
-    setAssets(a);
-    setHasMore(a.length === PAGE);
-    setOverview(o);
-    setUploadVolume((cur) => cur || v[0]?.id || '');
-  }, [ws, filter]);
+    const signal = requests.nextSignal();
+    try {
+      const [v, a, o] = await Promise.all([
+        apiFetch<Volume[]>(`/workspaces/${ws}/volumes`, { signal }),
+        apiFetch<Asset[]>(
+          `/workspaces/${ws}/assets?filter=${filter}&limit=${PAGE}`,
+          { signal },
+        ),
+        apiFetch<Overview>(`/workspaces/${ws}/assets/overview`, { signal }),
+      ]);
+      if (signal.aborted) return;
+      setVolumes(v);
+      setAssets(a);
+      setHasMore(a.length === PAGE);
+      setOverview(o);
+      setUploadVolume((cur) => cur || v[0]?.id || '');
+    } catch (err) {
+      if (isAbortError(err)) return;
+      setVolumes([]);
+      setAssets([]);
+      setHasMore(false);
+      setOverview(null);
+    }
+  }, [ws, filter, requests]);
 
   useEffect(() => {
     void load();
@@ -145,22 +158,17 @@ export default function MediaPage() {
     setUploading((u) => [...u, ...list.map((f) => f.name)]);
     let ok = 0;
     for (const file of list) {
-      const fd = new FormData();
-      fd.append('file', file);
-      if (uploadVolume) fd.append('volumeId', uploadVolume);
       try {
-        const res = await fetch(`${apiBaseUrl}/workspaces/${ws}/assets`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${getToken()}` },
-          body: fd,
-        });
-        if (!res.ok) {
-          const msg = (await res.json().catch(() => ({}))).message;
-          throw new Error(res.status === 501 ? 'This volume’s driver is not enabled yet' : msg || 'Upload failed');
-        }
+        await uploadAsset<Asset>(ws, file, uploadVolume);
         ok++;
       } catch (err) {
-        toast(err instanceof Error ? err.message : 'Upload failed', 'error');
+        const message =
+          err instanceof ApiError && err.status === 501
+            ? 'This volume’s driver is not enabled yet'
+            : err instanceof Error
+              ? err.message
+              : 'Upload failed';
+        toast(message, 'error');
       } finally {
         setUploading((u) => u.filter((n) => n !== file.name));
       }

@@ -10,8 +10,11 @@ import { Input } from '@/components/ui/Input';
 import { Loader } from '@/components/ui/Loader';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
-import { apiFetch, ApiError, apiBaseUrl } from '@/lib/api';
-import { getToken } from '@/lib/auth';
+import { apiFetch, ApiError } from '@/lib/api';
+import {
+  exportDocuments,
+  importDocumentsZip,
+} from '@/lib/api/documents';
 import { required } from '@/lib/validation';
 import { useProfile } from '@/lib/useProfile';
 
@@ -109,23 +112,13 @@ export default function DocumentsPage() {
   const exportDocs = useCallback(
     async (kind: 'html' | 'zip' | 'source') => {
       if (!ws || exporting) return;
-      const spec = {
-        html: { path: 'export.html', file: 'documentation.html' },
-        zip: { path: 'export.zip', file: 'documentation.zip' },
-        source: { path: 'export/source.zip', file: 'documentation-source.zip' },
-      }[kind];
       setExporting(true);
       try {
-        const res = await fetch(
-          `${apiBaseUrl}/workspaces/${ws}/documents/${spec.path}`,
-          { headers: { Authorization: `Bearer ${getToken() ?? ''}` } },
-        );
-        if (!res.ok) throw new Error(String(res.status));
-        const blob = await res.blob();
+        const { blob, filename } = await exportDocuments(ws, kind);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = spec.file;
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
         toast('Documentation exported', 'success');
@@ -186,21 +179,7 @@ export default function DocumentsPage() {
     if (!ws || !file) return;
     setImporting(true);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch(
-        `${apiBaseUrl}/workspaces/${ws}/documents/import.zip`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${getToken() ?? ''}` },
-          body: fd,
-        },
-      );
-      if (!res.ok) throw new Error(String(res.status));
-      const { imported, skipped } = (await res.json()) as {
-        imported: number;
-        skipped: number;
-      };
+      const { imported, skipped } = await importDocumentsZip(ws, file);
       toast(
         `Imported ${imported} file(s)${skipped ? ` · ${skipped} skipped` : ''}`,
         'success',

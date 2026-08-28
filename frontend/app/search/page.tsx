@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { cn } from '@/lib/cn';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, isAbortError } from '@/lib/api';
 import { useProfile } from '@/lib/useProfile';
+import { useLatestRequest } from '@/lib/useLatestRequest';
 
 interface Result {
   filePath: string;
@@ -47,23 +48,37 @@ function SearchContent() {
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
   const [facet, setFacet] = useState<Facet>('all');
+  const requests = useLatestRequest();
 
   useEffect(() => {
     if (!ws) return;
     const q = query.trim();
     if (!q) {
+      requests.abort();
       setResults([]);
+      setLoading(false);
       return;
     }
     setLoading(true);
     const t = setTimeout(() => {
-      apiFetch<Result[]>(`/workspaces/${ws}/documents/search?q=${encodeURIComponent(q)}`)
+      const signal = requests.nextSignal();
+      apiFetch<Result[]>(
+        `/workspaces/${ws}/documents/search?q=${encodeURIComponent(q)}`,
+        { signal },
+      )
         .then(setResults)
-        .catch(() => setResults([]))
-        .finally(() => setLoading(false));
+        .catch((err: unknown) => {
+          if (!isAbortError(err)) setResults([]);
+        })
+        .finally(() => {
+          if (!signal.aborted) setLoading(false);
+        });
     }, 200);
-    return () => clearTimeout(t);
-  }, [ws, query]);
+    return () => {
+      clearTimeout(t);
+      requests.abort();
+    };
+  }, [ws, query, requests]);
 
   const q = query.trim();
   const counts = useMemo(

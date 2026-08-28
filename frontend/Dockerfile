@@ -1,7 +1,7 @@
 # ==============================================================================
 # Stage 1: Base — instalacja zależności (z odpornym retry jak w Kidolo)
 # ==============================================================================
-FROM node:20-alpine AS base
+FROM node:20.19-alpine AS base
 WORKDIR /app
 
 COPY package*.json ./
@@ -41,7 +41,7 @@ RUN npm run build
 # ==============================================================================
 # Stage 4: Production (lekki runtime — server.js ze standalone)
 # ==============================================================================
-FROM node:20-alpine AS prod
+FROM node:20.19-alpine AS prod
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000

@@ -10,6 +10,9 @@ backend + Next.js 14 frontend.
 
 ## Quick start (dev)
 
+For a native Node.js workflow use Node **20.19+**. Docker users do not need to
+install Node locally. With nvm, `nvm use` reads the included `.nvmrc`.
+
 Bring up the full stack and load a ready-to-explore demo workspace:
 
 ```bash
@@ -71,6 +74,9 @@ Monorepo:
 - `backend/` — NestJS API (own README, `.env.example`, tests)
 - `frontend/` — Next.js app (own README)
 - `docker-compose.yml` — full demo stack (Mongo + backend + frontend + Mailpit)
+
+Contributor architecture and quality contracts live in
+[`docs/engineering`](docs/engineering); start with [`AGENTS.md`](AGENTS.md).
 
 ## Deployment & security
 

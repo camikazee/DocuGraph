@@ -21,6 +21,11 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'DocuGraph',
   description: 'Developer-focused documentation platform',
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
 };
 
 export default function RootLayout({

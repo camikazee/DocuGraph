@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { cn } from '@/lib/cn';
 import { Button } from './Button';
 
@@ -54,18 +54,56 @@ export function Modal({
   submitDisabled = false,
   hint,
 }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    const firstFocusable = dialog?.querySelector<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    );
+    (firstFocusable ?? dialog)?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !submitting) onClose();
+      if (e.key === 'Escape' && !submitting) {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      if (focusable.length === 0) {
+        e.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [open, submitting, onClose]);
 
   if (!open) return null;
@@ -75,11 +113,13 @@ export function Modal({
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4"
       onClick={() => !submitting && onClose()}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         className={cn(
           'w-full overflow-hidden rounded-2xl border border-capbd bg-panel shadow-[0_24px_60px_-12px_rgba(0,0,0,.6)]',
@@ -87,9 +127,12 @@ export function Modal({
         )}
       >
         <div className="flex items-center justify-between border-b border-line2 px-5 py-4">
-          <h2 className="text-[15px] font-bold text-fg">{title}</h2>
+          <h2 id={titleId} className="text-[15px] font-bold text-fg">
+            {title}
+          </h2>
           <button
-            onClick={onClose}
+            onClick={() => !submitting && onClose()}
+            disabled={submitting}
             className="text-fg3 transition hover:text-fg"
             aria-label="Close"
           >

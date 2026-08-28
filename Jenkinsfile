@@ -26,6 +26,12 @@ pipeline {
       description: 'Also push :latest and the branch tag (in addition to the commit SHA)')
     string(name: 'DEPLOY_WEBHOOK', defaultValue: '',
       description: 'Optional: Portainer stack webhook URL to POST after a successful push (redeploy)')
+    string(name: 'POST_DEPLOY_FRONTEND_URL', defaultValue: '',
+      description: 'Optional public frontend URL for read-only post-deploy smoke')
+    string(name: 'POST_DEPLOY_API_URL', defaultValue: '',
+      description: 'Optional API base URL ending in /api/v1 for read-only post-deploy smoke')
+    string(name: 'POST_DEPLOY_DG_TOKEN_CREDENTIALS_ID', defaultValue: '',
+      description: 'Optional Jenkins secret-text credential containing a dg_live_ token')
   }
 
   environment {
@@ -56,7 +62,7 @@ pipeline {
 
     // Test stages run inside a Node container so the agent needs no Node itself.
     stage('Backend — lint · test · build') {
-      agent { docker { image 'node:20-bookworm'; reuseNode true } }
+      agent { docker { image 'node:20.19-bookworm'; reuseNode true } }
       steps {
         dir('backend') {
           sh 'npm ci'
@@ -69,7 +75,7 @@ pipeline {
     }
 
     stage('Frontend — lint · test · build') {
-      agent { docker { image 'node:20-bookworm'; reuseNode true } }
+      agent { docker { image 'node:20.19-bookworm'; reuseNode true } }
       steps {
         dir('frontend') {
           sh 'npm ci'
@@ -108,6 +114,33 @@ pipeline {
       steps {
         // Portainer per-stack webhook redeploys the stack (pulls the new images).
         sh 'curl -fsS -X POST "$DEPLOY_WEBHOOK"'
+      }
+    }
+
+    stage('Post-deploy smoke (optional)') {
+      when {
+        expression {
+          params.POST_DEPLOY_FRONTEND_URL?.trim() && params.POST_DEPLOY_API_URL?.trim()
+        }
+      }
+      steps {
+        script {
+          withEnv([
+            "FRONTEND_URL=${params.POST_DEPLOY_FRONTEND_URL}",
+            "API_URL=${params.POST_DEPLOY_API_URL}"
+          ]) {
+            if (params.POST_DEPLOY_DG_TOKEN_CREDENTIALS_ID?.trim()) {
+              withCredentials([string(
+                credentialsId: params.POST_DEPLOY_DG_TOKEN_CREDENTIALS_ID,
+                variable: 'DG_TOKEN'
+              )]) {
+                sh './scripts/smoke-production-readonly.sh'
+              }
+            } else {
+              sh './scripts/smoke-production-readonly.sh'
+            }
+          }
+        }
       }
     }
   }

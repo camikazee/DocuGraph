@@ -41,3 +41,5 @@ locale/message-catalog layer at this time. UI strings stay inline in English.
 
 - Keep new UI strings in English.
 - When touching a screen, if you spot a non-English user-facing string, fix it.
+- Keep contributor-facing engineering documentation in English so the
+  open-source project remains approachable outside its original Polish context.

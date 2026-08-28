@@ -35,9 +35,9 @@ import { MoveDocumentDto } from './dto/move-document.dto';
 import { ReadEventDto, WatchDto } from './dto/telemetry.dto';
 import { PublishDto } from './dto/publish.dto';
 import { DocumentsService } from './documents.service';
-import { GitPublishService } from './git-publish.service';
 import { AutoPublishService } from './auto-publish.service';
-import { UsersService } from '../users/users.service';
+import { PublishDocumentsService } from './publish-documents.service';
+import { DocumentConsistencyService } from './document-consistency.service';
 import { AuditService } from '../audit/audit.service';
 import { AccessService, AccessChecker } from '../access/access.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -48,9 +48,9 @@ export class DocumentsController {
   constructor(
     private readonly documentsService: DocumentsService,
     private readonly workspacesService: WorkspacesService,
-    private readonly gitPublish: GitPublishService,
     private readonly autoPublish: AutoPublishService,
-    private readonly usersService: UsersService,
+    private readonly publishDocuments: PublishDocumentsService,
+    private readonly consistency: DocumentConsistencyService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     private readonly access: AccessService,
@@ -102,7 +102,7 @@ export class DocumentsController {
       updatedBy,
       dto.message,
     );
-    this.autoPublish.schedule(workspaceId); // bidirectional sync (no-op if off)
+    this.autoPublish.schedule(workspaceId);
     return this.toFull(doc);
   }
 
@@ -472,43 +472,14 @@ export class DocumentsController {
     @Req() req: RequestWithWorkspace,
     @Body() dto: PublishDto,
   ) {
-    const remote = await this.workspacesService.getPushRemote(workspaceId);
-    if (!remote) {
-      throw new BadRequestException(
-        'Configure a push remote first (Connect → publishing).',
-      );
-    }
-    const source = (await this.workspacesService.getSource(workspaceId)) as {
-      branch?: string;
-    } | null;
-    const branch = source?.branch || 'main';
-
-    let authorName = 'DocuGraph';
-    let authorEmail = 'docugraph@localhost';
-    if (req.authType === 'jwt') {
-      const user = await this.usersService.findById(req.user.userId);
-      if (user) {
-        authorName = user.name;
-        authorEmail = user.email;
-      }
-    }
-
-    const result = await this.gitPublish.publish({
+    return this.publishDocuments.execute(
       workspaceId,
-      remote,
-      branch,
-      message: dto.message || 'Publish from DocuGraph',
-      authorName,
-      authorEmail,
-    });
-    await this.audit.log({
-      workspaceId,
-      actorId: this.actorOf(req),
-      action: 'documents.published',
-      target: branch,
-      metadata: { pushed: result.pushed, commit: result.commit ?? null },
-    });
-    return result;
+      {
+        id: this.actorOf(req),
+        authType: req.authType === 'apiKey' ? 'apiKey' : 'jwt',
+      },
+      dto.message ?? '',
+    );
   }
 
   @Post('move')
@@ -612,6 +583,13 @@ export class DocumentsController {
       workspaceId,
       await this.checker(workspaceId, req),
     );
+  }
+
+  @Get('consistency')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner)
+  checkConsistency(@Param('id') workspaceId: string) {
+    return this.consistency.check(workspaceId);
   }
 
   /** Eksport całej dokumentacji do jednego pliku HTML (read-only). */

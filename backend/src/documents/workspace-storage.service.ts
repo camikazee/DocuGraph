@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { promises as fs } from 'fs';
+import { randomUUID } from 'crypto';
+import { Dirent, promises as fs } from 'fs';
 import * as path from 'path';
 
 /**
@@ -55,7 +56,19 @@ export class WorkspaceStorageService {
   ): Promise<void> {
     const full = this.resolveSafePath(workspaceId, filePath);
     await fs.mkdir(path.dirname(full), { recursive: true });
-    await fs.writeFile(full, content, 'utf8');
+    const temporary = `${full}.${randomUUID()}.tmp`;
+    let handle: Awaited<ReturnType<typeof fs.open>> | null = null;
+    try {
+      handle = await fs.open(temporary, 'wx');
+      await handle.writeFile(content, 'utf8');
+      await handle.sync();
+      await handle.close();
+      handle = null;
+      await fs.rename(temporary, full);
+    } finally {
+      await handle?.close().catch(() => undefined);
+      await fs.rm(temporary, { force: true }).catch(() => undefined);
+    }
   }
 
   async readFile(workspaceId: string, filePath: string): Promise<string> {
@@ -67,5 +80,31 @@ export class WorkspaceStorageService {
   async deleteFile(workspaceId: string, filePath: string): Promise<void> {
     const full = this.resolveSafePath(workspaceId, filePath);
     await fs.rm(full, { force: true });
+  }
+
+  /** Zwraca kanoniczne ścieżki wszystkich plików Markdown workspace. */
+  async listFiles(workspaceId: string): Promise<string[]> {
+    const base = path.resolve(this.root, workspaceId);
+    const files: string[] = [];
+
+    const walk = async (dir: string): Promise<void> => {
+      let entries: Dirent<string>[];
+      try {
+        entries = await fs.readdir(dir, { withFileTypes: true });
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+        throw err;
+      }
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) await walk(full);
+        else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
+          files.push(path.relative(base, full).split(path.sep).join('/'));
+        }
+      }
+    };
+
+    await walk(base);
+    return files.sort();
   }
 }

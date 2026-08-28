@@ -1,67 +1,75 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { JobHandlersService } from '../jobs/job-handlers.service';
+import { JobsService } from '../jobs/jobs.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { GitPublishService } from './git-publish.service';
 
-/**
- * Automatyczny push edycji UI do repo (bidirectional sync). Wyzwalany po każdej
- * zmianie treści dokumentu — ale tylko gdy włączony przełącznik `bidirectional`
- * i skonfigurowany push remote.
- *
- * Wywołania są „fire-and-forget" (nie blokują odpowiedzi edycji). Operacje na
- * jednym workspace są **serializowane** (git na wspólnym working dirze nie może
- * biec współbieżnie) i **koalescują** — zmiany w trakcie publikacji wyzwalają
- * dokładnie jedno dodatkowe uruchomienie po zakończeniu.
- */
+const JOB_KIND = 'git-auto-publish';
+
+/** Durable automatic Git publication for bidirectional workspaces. */
 @Injectable()
-export class AutoPublishService {
+export class AutoPublishService implements OnModuleInit {
   private readonly logger = new Logger(AutoPublishService.name);
-  private readonly running = new Set<string>();
-  private readonly pending = new Set<string>();
 
   constructor(
     private readonly workspaces: WorkspacesService,
     private readonly gitPublish: GitPublishService,
+    private readonly jobs: JobsService,
+    private readonly handlers: JobHandlersService,
   ) {}
 
-  /** Zgłasza chęć publikacji (nie blokuje). Bezpieczne do wielokrotnego wołania. */
-  schedule(workspaceId: string): void {
-    if (this.running.has(workspaceId)) {
-      this.pending.add(workspaceId);
-      return;
-    }
-    void this.run(workspaceId);
+  onModuleInit(): void {
+    this.handlers.register(JOB_KIND, async (payload) => {
+      const workspaceId = payload.workspaceId;
+      if (typeof workspaceId !== 'string') {
+        throw new Error('Invalid git-auto-publish payload');
+      }
+      await this.publish(workspaceId);
+    });
   }
 
-  private async run(workspaceId: string): Promise<void> {
-    this.running.add(workspaceId);
-    try {
-      const source = (await this.workspaces.getSource(workspaceId)) as {
-        bidirectional?: boolean;
-        branch?: string;
-      } | null;
-      if (!source?.bidirectional) return;
+  /** Queue publication without making a persisted document mutation fail. */
+  schedule(workspaceId: string): void {
+    void this.queueIfEnabled(workspaceId).catch((err: unknown) => {
+      this.logger.error(
+        `Could not queue auto-sync for ${workspaceId}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    });
+  }
 
-      const remote = await this.workspaces.getPushRemote(workspaceId);
-      if (!remote) return;
+  private async queueIfEnabled(workspaceId: string): Promise<void> {
+    const source = (await this.workspaces.getSource(workspaceId)) as {
+      bidirectional?: boolean;
+    } | null;
+    if (!source?.bidirectional) return;
+    await this.jobs.enqueue(
+      JOB_KIND,
+      { workspaceId },
+      `${JOB_KIND}:${workspaceId}:${randomUUID()}`,
+    );
+  }
 
-      const result = await this.gitPublish.publish({
-        workspaceId,
-        remote,
-        branch: source.branch || 'main',
-        message: 'Auto-sync from DocuGraph',
-        authorName: 'DocuGraph',
-        authorEmail: 'docugraph@localhost',
-      });
-      if (result.pushed) {
-        this.logger.log(`Auto-synced ${workspaceId} (${result.commit})`);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'auto-sync failed';
-      this.logger.warn(`Auto-sync failed for ${workspaceId}: ${msg}`);
-    } finally {
-      this.running.delete(workspaceId);
-      // Zmiany zgłoszone w trakcie publikacji → dokładnie jedno dodatkowe biegnięcie.
-      if (this.pending.delete(workspaceId)) void this.run(workspaceId);
+  private async publish(workspaceId: string): Promise<void> {
+    const source = (await this.workspaces.getSource(workspaceId)) as {
+      bidirectional?: boolean;
+      branch?: string;
+    } | null;
+    if (!source?.bidirectional) return;
+
+    const remote = await this.workspaces.getPushRemote(workspaceId);
+    if (!remote) return;
+    const result = await this.gitPublish.publish({
+      workspaceId,
+      remote,
+      branch: source.branch || 'main',
+      message: 'Auto-sync from DocuGraph',
+      authorName: 'DocuGraph',
+      authorEmail: 'docugraph@localhost',
+    });
+    if (result.pushed) {
+      this.logger.log(`Auto-synced ${workspaceId} (${result.commit})`);
     }
   }
 }

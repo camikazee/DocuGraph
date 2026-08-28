@@ -29,7 +29,8 @@ Pełna lista endpointów: **Swagger** pod `/api/docs`.
 - Dokumentacja: **Swagger/OpenAPI** (`/api/docs`)
 - Testy: **Jest** + **Supertest**
 
-> **Node:** działa na Node 18+. Do produkcji zalecany **Node 20 LTS** (i wtedy NestJS 11+).
+> **Node:** wymagany jest Node **20.19+**. Ten sam minimalny runtime obowiązuje
+> lokalnie, w CI i w obrazach produkcyjnych.
 
 ## Szybki start
 
@@ -128,6 +129,7 @@ src/
 | GET/POST | `/workspaces/:id/documents/favorites` · `/favorite` | ulubione usera (lista / toggle `{ path, on }`) |
 | GET | `/workspaces/:id/documents/by-path?path=…` | pełny dokument (HTML, metadata, linki) |
 | GET | `/workspaces/:id/documents/health` | zwięzłe zdrowie docs (`ok`, broken/orphan/stale) — pod CI |
+| GET | `/workspaces/:id/documents/consistency` | Owner-only, read-only raport zgodności plików Markdown z indeksem Mongo |
 | GET | `/workspaces/:id/documents/feed.atom` | Atom feed ostatnio zmienionych dokumentów |
 | GET | `/workspaces/:id/documents/export.html` | eksport całej dokumentacji do jednego, samowystarczalnego pliku HTML (read-only) |
 | GET | `/workspaces/:id/documents/export.zip` | eksport wielostronicowy — ZIP ze statycznym site (strona/dokument + `style.css` + `index.html`) |

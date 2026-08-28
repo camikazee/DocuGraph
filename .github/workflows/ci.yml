@@ -23,9 +23,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20.19.0'
           cache: npm
           cache-dependency-path: backend/package-lock.json
+
+      - run: ../scripts/validate-project-docs.sh
 
       # Cache the mongod binary that mongodb-memory-server downloads for e2e.
       - name: Cache mongodb-memory-server binary
@@ -51,9 +53,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20.19.0'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - run: ../scripts/validate-project-docs.sh
 
       - run: npm ci
       - run: npm run lint

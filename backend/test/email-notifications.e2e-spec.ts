@@ -95,6 +95,14 @@ describe('Email notifications for watched documents (e2e)', () => {
       .send({ file_path: DOC, content_raw: body })
       .expect(201);
 
+  const waitForMail = async () => {
+    const deadline = Date.now() + 5000;
+    while (!mailer.lastSent && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return mailer.lastSent as { to: string; subject: string } | null;
+  };
+
   it('does not email a watcher who has not opted in', async () => {
     mailer.lastSent = null;
     await editDoc('# Email\n\nv2');
@@ -111,7 +119,7 @@ describe('Email notifications for watched documents (e2e)', () => {
     mailer.lastSent = null;
     await editDoc('# Email\n\nv3 — should email the member');
 
-    const sent = mailer.lastSent as { to: string; subject: string } | null;
+    const sent = await waitForMail();
     expect(sent).not.toBeNull();
     expect(sent?.to).toBe('member@mail.test');
     expect(sent?.subject).toContain('Owner');

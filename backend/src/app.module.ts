@@ -19,6 +19,7 @@ import { NotificationPreferencesModule } from './notification-preferences/notifi
 import { AccessModule } from './access/access.module';
 import { ErrorLogModule } from './error-log/error-log.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
+import { JobsModule } from './jobs/jobs.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
     DocumentsModule,
     MediaModule,
     ErrorLogModule,
+    JobsModule,
   ],
   providers: [
     // Globalny rate limiting na wszystkie endpointy (chroni m.in. logowanie).

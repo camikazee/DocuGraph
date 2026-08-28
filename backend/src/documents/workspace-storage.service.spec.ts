@@ -25,6 +25,25 @@ describe('WorkspaceStorageService', () => {
     await service.writeFile('ws1', 'docs/api/auth.md', '# Hello');
     const content = await service.readFile('ws1', 'docs/api/auth.md');
     expect(content).toBe('# Hello');
+    const entries = await fs.readdir(path.join(root, 'ws1', 'docs/api'));
+    expect(entries).toEqual(['auth.md']);
+  });
+
+  it('zachowuje poprzednią treść i sprząta temp po błędzie rename', async () => {
+    await service.writeFile('ws1', 'safe.md', '# Previous');
+    const rename = jest
+      .spyOn(fs, 'rename')
+      .mockRejectedValueOnce(new Error('disk'));
+
+    await expect(service.writeFile('ws1', 'safe.md', '# New')).rejects.toThrow(
+      'disk',
+    );
+    rename.mockRestore();
+    await expect(service.readFile('ws1', 'safe.md')).resolves.toBe(
+      '# Previous',
+    );
+    const entries = await fs.readdir(path.join(root, 'ws1'));
+    expect(entries.filter((entry) => entry.includes('.tmp'))).toEqual([]);
   });
 
   it('izoluje pliki per workspace (ścieżka zawiera id workspace)', () => {

@@ -6,6 +6,8 @@ Next.js 14 (App Router) + TypeScript (strict) + Tailwind CSS frontend for
 
 ## Quick start
 
+Requires Node.js **20.19 or newer**.
+
 ```bash
 npm install
 cp .env.local.example .env.local     # NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1

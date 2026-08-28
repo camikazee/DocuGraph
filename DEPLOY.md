@@ -234,8 +234,9 @@ Files:
 ### Pipeline (`Jenkinsfile`)
 
 Stages: checkout → backend (lint · unit · e2e · build) → frontend (lint ·
-typecheck · unit · build) → **build & push images** → optional deploy webhook.
-Test stages run inside a `node:20` container, so the agent only needs Docker (+
+typecheck · unit · build) → **build & push images** → optional deploy webhook →
+optional read-only smoke. Test stages run inside a `node:20.19` container, so
+the agent only needs Docker (+
 the Docker Pipeline plugin) and a registry credential.
 
 Job parameters (or set as global env with the same names):
@@ -248,6 +249,9 @@ Job parameters (or set as global env with the same names):
 | `RUN_E2E` | run backend e2e (in-memory Mongo) before building — default true |
 | `PUSH_LATEST` | also push `:latest` + the branch tag alongside the commit SHA |
 | `DEPLOY_WEBHOOK` | optional Portainer stack webhook to POST after a successful push |
+| `POST_DEPLOY_FRONTEND_URL` | optional public frontend URL for the post-deploy smoke |
+| `POST_DEPLOY_API_URL` | optional API base URL ending in `/api/v1` |
+| `POST_DEPLOY_DG_TOKEN_CREDENTIALS_ID` | optional Jenkins secret-text credential with a `dg_live_` token; enables authenticated docs-health smoke |
 
 Images pushed: `${REGISTRY}/docugraph-backend:<sha>` and
 `…/docugraph-frontend:<sha>` (plus `:latest` and the branch tag when enabled).
@@ -276,3 +280,18 @@ pipeline's `DEPLOY_WEBHOOK` so a green build auto-redeploys.
 
 **Promotion:** reuse the exact backend image across dev → staging → prod (only
 the runtime env differs); build a matching frontend image per environment URL.
+
+### Read-only post-deploy smoke
+
+The optional Jenkins smoke performs GET requests only. It retries the frontend,
+`/health`, and `/ready` for up to 90 seconds while Portainer replaces the
+containers. With a CI token it also verifies `/ci/whoami` and documentation
+health for that token's workspace. Run it manually with:
+
+```bash
+FRONTEND_URL=https://docs.example.com \
+API_URL=https://api.docs.example.com/api/v1 \
+DG_TOKEN=dg_live_optional ./scripts/smoke-production-readonly.sh
+```
+
+Omit `DG_TOKEN` for the public liveness/readiness checks only.

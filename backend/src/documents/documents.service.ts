@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -38,9 +40,13 @@ import { MediaService } from '../media/media.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { AccessChecker } from '../access/access.service';
 import { lineDiff } from './diff.util';
+import { JobsService } from '../jobs/jobs.service';
+import { JobHandlersService } from '../jobs/job-handlers.service';
 
 @Injectable()
-export class DocumentsService {
+export class DocumentsService implements OnModuleInit {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(
     @InjectModel(DocumentEntity.name)
     private readonly documentModel: Model<DocumentEntityDocument>,
@@ -68,7 +74,36 @@ export class DocumentsService {
     private readonly config: ConfigService,
     private readonly media: MediaService,
     private readonly workspaces: WorkspacesService,
+    private readonly jobs: JobsService,
+    private readonly jobHandlers: JobHandlersService,
   ) {}
+
+  onModuleInit(): void {
+    this.jobHandlers.register('document-email', async (payload) => {
+      const recipients = payload.recipients;
+      const filePath = payload.filePath;
+      const title = payload.title;
+      const kind = payload.kind;
+      const actorId = payload.actorId;
+      if (
+        !Array.isArray(recipients) ||
+        !recipients.every((id) => typeof id === 'string') ||
+        typeof filePath !== 'string' ||
+        typeof title !== 'string' ||
+        typeof kind !== 'string' ||
+        (actorId !== null && typeof actorId !== 'string')
+      ) {
+        throw new Error('Invalid document-email payload');
+      }
+      await this.emailWatchers(
+        recipients.map((id) => new Types.ObjectId(id)),
+        filePath,
+        title,
+        kind,
+        actorId,
+      );
+    });
+  }
 
   // --- Cache w pamięci dla drogich obliczeń per-workspace (graf, health). ---
   // TTL zabezpiecza przed nieświeżością; mutacje dokumentów jawnie unieważniają.
@@ -698,7 +733,7 @@ export class DocumentsService {
       filtered = filtered.filter((u) => allowed.has(u.toString()));
       if (filtered.length === 0) return;
     }
-    await this.notificationModel.insertMany(
+    const notifications = await this.notificationModel.insertMany(
       filtered.map((userId) => ({
         workspaceId,
         userId,
@@ -708,7 +743,33 @@ export class DocumentsService {
         actorId: actorId ?? null,
       })),
     );
-    await this.emailWatchers(filtered, filePath, title, kind, actorId);
+    const optedIn = await this.preferences.emailEnabledAmong(
+      filtered.map((id) => id.toString()),
+    );
+    const emailRecipients = filtered.filter((id) => optedIn.has(id.toString()));
+    if (emailRecipients.length === 0) return;
+    const idempotencyKey = `document-email:${notifications
+      .map((notification) => notification.uuid)
+      .sort()
+      .join(':')}`;
+    try {
+      await this.jobs.enqueue(
+        'document-email',
+        {
+          recipients: emailRecipients.map((id) => id.toString()),
+          filePath,
+          title,
+          kind,
+          actorId,
+        },
+        idempotencyKey,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Could not queue watcher e-mail for ${filePath}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
   }
 
   /** Wysyła e-mail do obserwujących, którzy włączyli powiadomienia mailowe. */
@@ -720,9 +781,6 @@ export class DocumentsService {
     actorId: string | null,
   ): Promise<void> {
     const ids = recipients.map((r) => r.toString());
-    const optedIn = await this.preferences.emailEnabledAmong(ids);
-    if (optedIn.size === 0) return;
-
     const verb = this.verbForKind(kind);
     const actorName = actorId
       ? ((await this.usersService.findById(actorId))?.name ?? 'Someone')
@@ -733,7 +791,6 @@ export class DocumentsService {
     const link = `${appUrl}/documents/view?path=${encodeURIComponent(filePath)}`;
 
     for (const id of ids) {
-      if (!optedIn.has(id)) continue;
       const user = await this.usersService.findById(id);
       if (!user?.email) continue;
       await this.mailer.sendWatchNotification(user.email, {

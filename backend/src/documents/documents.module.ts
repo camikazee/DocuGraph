@@ -34,6 +34,8 @@ import { WorkspaceStorageService } from './workspace-storage.service';
 import { MarkdownParserService } from './markdown-parser.service';
 import { GitPublishService } from './git-publish.service';
 import { AutoPublishService } from './auto-publish.service';
+import { PublishDocumentsService } from './publish-documents.service';
+import { DocumentConsistencyService } from './document-consistency.service';
 import { DigestCron } from './digest.cron';
 import { AuditModule } from '../audit/audit.module';
 import { MailerModule } from '../common/mailer/mailer.module';
@@ -79,6 +81,8 @@ import { AccessModule } from '../access/access.module';
     MarkdownParserService,
     GitPublishService,
     AutoPublishService,
+    PublishDocumentsService,
+    DocumentConsistencyService,
     DigestCron,
   ],
 })

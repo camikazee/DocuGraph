@@ -1,7 +1,7 @@
 # ==============================================================================
 # Stage 1: Base — instalacja zależności (z odpornym retry jak w Kidolo)
 # ==============================================================================
-FROM node:20-bookworm-slim AS base
+FROM node:20.19-bookworm-slim AS base
 WORKDIR /app
 
 # git — wymagany przez „Publish to Git" (commit & push przez simple-git).
@@ -42,7 +42,7 @@ RUN npm run build \
 # ==============================================================================
 # Stage 4: Production
 # ==============================================================================
-FROM node:20-bookworm-slim AS prod
+FROM node:20.19-bookworm-slim AS prod
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000

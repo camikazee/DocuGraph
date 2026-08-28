@@ -9,8 +9,8 @@ import { NoAccess } from '@/components/ui/NoAccess';
 import { AccessPanel } from '@/components/AccessPanel';
 import { ShareDialog } from '@/components/ShareDialog';
 import { useToast } from '@/components/ui/Toast';
-import { apiBaseUrl, apiFetch, ApiError } from '@/lib/api';
-import { getToken } from '@/lib/auth';
+import { apiFetch, ApiError } from '@/lib/api';
+import { recordDocumentRead } from '@/lib/api/documents';
 import { cn } from '@/lib/cn';
 import { useProfile } from '@/lib/useProfile';
 import 'highlight.js/styles/github-dark.css';
@@ -197,17 +197,7 @@ function ReaderContent() {
     const send = () => {
       if (sent) return;
       sent = true;
-      const token = getToken();
-      if (!token) return;
-      fetch(`${apiBaseUrl}/workspaces/${ws}/documents/events/read`, {
-        method: 'POST',
-        keepalive: true,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ path, durationMs: Date.now() - start }),
-      }).catch(() => {});
+      void recordDocumentRead(ws, path, Date.now() - start).catch(() => {});
     };
     const onHide = () => {
       if (document.visibilityState === 'hidden') send();

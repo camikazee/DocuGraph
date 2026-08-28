@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, isAbortError } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { useLatestRequest } from '@/lib/useLatestRequest';
 import { LogoMark } from '@/components/ui/Logo';
 
 interface DocItem {
@@ -61,6 +62,7 @@ export function CommandPalette() {
   const [docs, setDocs] = useState<DocItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [active, setActive] = useState(0);
+  const requests = useLatestRequest();
 
   // ⌘K toggle + Esc close + klikalny trigger (event)
   useEffect(() => {
@@ -86,14 +88,21 @@ export function CommandPalette() {
   useEffect(() => {
     if (!open || loaded) return;
     setLoaded(true);
-    apiFetch<{ workspaces: { id: string }[] }>('/auth/me')
+    const signal = requests.nextSignal();
+    apiFetch<{ workspaces: { id: string }[] }>('/auth/me', { signal })
       .then((me) => {
         const ws = me.workspaces[0]?.id;
-        return ws ? apiFetch<DocItem[]>(`/workspaces/${ws}/documents`) : [];
+        return ws
+          ? apiFetch<DocItem[]>(`/workspaces/${ws}/documents`, { signal })
+          : [];
       })
       .then((d) => setDocs(d ?? []))
-      .catch(() => setDocs([]));
-  }, [open, loaded]);
+      .catch((err: unknown) => {
+        if (isAbortError(err)) setLoaded(false);
+        else setDocs([]);
+      });
+    return requests.abort;
+  }, [open, loaded, requests]);
 
   const docResults = useMemo(() => {
     const q = query.trim().toLowerCase();
