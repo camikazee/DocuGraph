@@ -41,6 +41,10 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [x] Docker Compose stack (Mongo + backend + frontend + Mailpit)
 - [x] Portainer stack — `docker-compose.portainer.yml` + `.env.portainer.example` build the whole project from the repo as one stack (env-driven, secrets-manager friendly); `DEPLOY.md §8`
 - [x] One-command demo stack — `docker-compose.demo.yml` builds everything and **auto-seeds** a realistic workspace on first boot (`docker compose -f docker-compose.demo.yml up -d --build`), URLs overridable for self-hosting
+- [x] **Portable self-hosting** — one safe installer and one-origin Compose
+  topology run the same amd64/arm64 frontend and backend images under any
+  domain without rebuilding; runtime diagnostics cover config, Mongo, API
+  readiness, and frontend health
 - [x] CI/CD for prod — universal parameterized `Jenkinsfile` (test → build → push tagged images → optional deploy webhook) + `docker-compose.prod.yml` (pull pre-built images, no build on host); build-once/promote/rollback documented in `DEPLOY.md §9`
 - [x] 120 e2e tests, PolyForm Noncommercial license, DEPLOY.md + SECURITY.md
 - [x] Internal landing page (separate repo)
@@ -119,7 +123,8 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 
 - [x] **Polished demo seed** — one-command `npm run seed` populates a realistic workspace (3 users, cross-linked docs incl. code + Mermaid, media, an intentional broken link).
 - [x] **Demo walkthrough in the repo** — `docs/demo/` with a guided tour + current screenshots of the main views (dashboard, documents, graph, reader, media, connect) and run-it-yourself instructions, linked from the root README. *(Intentionally makes curated demo screenshots public — reverses the earlier "screenshots stay internal" call.)*
-- [ ] **Optional live/preview** — a hosted demo people can click through (compose demo already documented).
+- [ ] **Optional community showcase** — a hosted instance people can click
+  through; never a required provider or part of the installation architecture
 
 ---
 

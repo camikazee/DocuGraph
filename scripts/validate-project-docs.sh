@@ -10,6 +10,7 @@ required=(
   docs/engineering/http-contract.md
   docs/engineering/testing-rules.md
   docs/engineering/change-log.md
+  docs/install/containers.md
   docs/decisions/0001-product-ui-language-english.md
 )
 

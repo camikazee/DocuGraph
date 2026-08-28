@@ -25,12 +25,11 @@ Transactional email (reset/invite) is caught by **Mailpit** at
 http://localhost:8025. The seed is idempotent. Clean slate:
 `docker compose -f docker-compose.demo.yml down -v && docker compose -f docker-compose.demo.yml up -d --build`.
 
-**Standing it up on a server** (browsing from another machine): point the URLs
-at the host so the browser can reach the API:
+**Standing it up on a server** (browsing from another machine): set only the
+public application origin. The API stays behind the frontend:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://SERVER:3000/api/v1 \
-APP_URL=http://SERVER:3002 CORS_ORIGINS=http://SERVER:3002 \
+APP_URL=http://SERVER:3002 \
 docker compose -f docker-compose.demo.yml up -d --build
 ```
 
@@ -41,8 +40,7 @@ docker compose -f docker-compose.demo.yml up -d --build
 <summary>Alternative: dev compose + manual seed</summary>
 
 ```bash
-docker compose up -d --build     # mongo + backend + frontend + mailpit
-cd backend && npm run seed       # demo workspace: users, docs, media, links
+docker compose -f docker-compose.demo.yml up -d --build
 ```
 </details>
 
