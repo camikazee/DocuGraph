@@ -8,6 +8,7 @@ import { DocumentSchema } from './documents/schemas/document.schema';
 import { JobSchema } from './jobs/schemas/job.schema';
 import { DocumentTemplateSchema } from './document-templates/schemas/document-template.schema';
 import { DocumentSnippetSchema } from './document-snippets/schemas/document-snippet.schema';
+import { FrontmatterSchemaSchema } from './frontmatter-schemas/schemas/frontmatter-schema.schema';
 
 /** Czy schema deklaruje indeks o danym kształcie pól (i opcjonalnie unique). */
 function hasIndex(
@@ -89,6 +90,16 @@ describe('Schematy — indeksy i ograniczenia', () => {
     expect(
       hasIndex(
         DocumentSnippetSchema,
+        { workspaceId: 1, name: 1 },
+        { unique: true },
+      ),
+    ).toBe(true);
+  });
+
+  it('FrontmatterSchema has a unique workspace name', () => {
+    expect(
+      hasIndex(
+        FrontmatterSchemaSchema,
         { workspaceId: 1, name: 1 },
         { unique: true },
       ),

@@ -22,6 +22,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
 import { JobsModule } from './jobs/jobs.module';
 import { DocumentTemplatesModule } from './document-templates/document-templates.module';
 import { DocumentSnippetsModule } from './document-snippets/document-snippets.module';
+import { FrontmatterSchemasModule } from './frontmatter-schemas/frontmatter-schemas.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { DocumentSnippetsModule } from './document-snippets/document-snippets.mo
     JobsModule,
     DocumentTemplatesModule,
     DocumentSnippetsModule,
+    FrontmatterSchemasModule,
   ],
   providers: [
     // Globalny rate limiting na wszystkie endpointy (chroni m.in. logowanie).
