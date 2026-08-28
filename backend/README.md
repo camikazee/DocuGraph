@@ -22,6 +22,8 @@ Backend dla **DocuGraph** — platformy SaaS do dokumentacji deweloperskiej (Mar
 - **Git source** — indeksowanie z GitHub, **podpisane webhooki** (HMAC) z reindeksem,
   **Publish to Git** (commit & push) z opcjonalnym auto-syncem edycji.
 - **Telemetria** — odczyty, czas czytania, obserwowanie (watching).
+- **Content analytics** — dla Owner/Editor: most-read, dead pages i wyszukiwania
+  bez wyników w okresach 7/30/90 dni, filtrowane przez reguły dostępu.
 - **E-mail** — reset hasła przez SMTP (nodemailer; w dev Mailpit).
 
 Pełna lista endpointów: **Swagger** pod `/api/docs`.
@@ -139,6 +141,7 @@ src/
 | GET/POST | `/workspaces/:id/documents/favorites` · `/favorite` | ulubione usera (lista / toggle `{ path, on }`) |
 | GET | `/workspaces/:id/documents/by-path?path=…` | pełny dokument (HTML, metadata, linki) |
 | GET | `/workspaces/:id/documents/health` | zwięzłe zdrowie docs (`ok`, broken/orphan/stale) — pod CI |
+| GET | `/workspaces/:id/documents/content-analytics?days=7\|30\|90` | Owner/Editor; most-read, dead pages i wyszukiwania bez wyników |
 | GET | `/workspaces/:id/documents/consistency` | Owner-only, read-only raport zgodności plików Markdown z indeksem Mongo |
 | GET | `/workspaces/:id/documents/feed.atom` | Atom feed ostatnio zmienionych dokumentów |
 | GET | `/workspaces/:id/documents/export.html` | eksport całej dokumentacji do jednego, samowystarczalnego pliku HTML (read-only) |
@@ -152,6 +155,15 @@ src/
 | GET | `/workspaces/:id/documents/broken-links` | raport zepsutych linków + propozycje naprawy |
 | POST | `/workspaces/:id/documents/broken-links/fix` | napraw pojedynczy link `{ from, to }` |
 | POST | `/workspaces/:id/documents/broken-links/fix-all` | napraw zbiorczo wszystkie rozwiązywalne linki (`{ fixedCount, skippedCount, fixed, skipped }`) |
+
+Content analytics agreguje istniejące zdarzenia MongoDB i nie wymaga
+zewnętrznego trackera. Zakres domyślny to 30 dni, a dozwolone wartości to 7, 30
+i 90. Dead page to aktualny, widoczny dokument mający co najmniej siedem dni i
+zero odczytów w wybranym okresie. Wyniki i sumy respektują per-resource access.
+Rejestrowane są wyłącznie wyszukiwania bez widocznych wyników: termin jest
+normalizowany do małych liter, złączonych odstępów i maksymalnie 160 znaków.
+Nie zapisujemy udanych wyszukiwań, user id, IP, user-agentów, URL-i ani treści
+wyników. Odpowiedź wyszukiwania pozostaje niezmienioną tablicą.
 
 ### Szablony dokumentów (JWT)
 

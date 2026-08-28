@@ -3,6 +3,18 @@
 This records substantial engineering changes and their verification. It does
 not replace Git history or the product roadmap.
 
+## 2026-08-28 — Actionable content analytics
+
+- Added Owner/Editor-only 7/30/90-day most-read, dead-page, and missed-search
+  insights to Statistics without changing its existing read/edit reporting.
+- Aggregated existing MongoDB read events and recorded only normalized
+  zero-result search terms; no successful searches, user histories, network
+  identifiers, result content, or third-party tracking were added.
+- Filtered document paths, ranked rows, and read totals through current
+  per-resource access rules and excluded deleted and cross-workspace content.
+- Isolated insight loading and retry state from the existing Statistics request
+  and abort stale insight requests when the workspace or period changes.
+
 ## 2026-08-28 — Custom frontmatter schemas
 
 - Added an immutable, zero-setup basic metadata schema and tenant-scoped custom

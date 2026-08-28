@@ -138,4 +138,7 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
   tenant-scoped Owner/Editor-managed schemas generate safe browser forms for
   six bounded field types; applying preserves unmanaged YAML and Markdown and
   persists only through the normal document save pipeline.
-- [ ] Analytics: most-read, dead pages, search-with-no-results
+- [x] **Content analytics** — Owner/Editor Statistics surfaces access-filtered
+  most-read documents, established dead pages, and normalized zero-result
+  searches for 7/30/90-day periods, using existing MongoDB events without a
+  third-party tracker.

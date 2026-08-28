@@ -3,10 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
+import { ContentInsights } from '@/components/ContentInsights';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { Loader } from '@/components/ui/Loader';
 import { cn } from '@/lib/cn';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, isAbortError } from '@/lib/api';
+import {
+  getContentAnalytics,
+  type ContentAnalytics,
+  type ContentAnalyticsPeriod,
+} from '@/lib/api/content-analytics';
+import { useLatestRequest } from '@/lib/useLatestRequest';
 import { useProfile } from '@/lib/useProfile';
 
 interface Stats {
@@ -42,9 +49,15 @@ export default function StatsPage() {
   const { profile, error } = useProfile();
   const ws = profile?.workspaces[0]?.id;
   const wsName = profile?.workspaces[0]?.name ?? 'this workspace';
+  const role = profile?.workspaces[0]?.role;
+  const canViewContentAnalytics = role === 'owner' || role === 'editor';
   const [stats, setStats] = useState<Stats | null>(null);
   const [range, setRange] = useState<(typeof RANGES)[number]['key']>('30d');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<ContentAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const analyticsRequests = useLatestRequest();
 
   const load = useCallback(() => {
     if (!ws) return;
@@ -59,6 +72,37 @@ export default function StatsPage() {
   }, [load]);
 
   const days = RANGES.find((r) => r.key === range)?.days ?? 30;
+  const loadAnalytics = useCallback(() => {
+    if (!ws || !canViewContentAnalytics) {
+      analyticsRequests.abort();
+      setAnalytics(null);
+      setAnalyticsLoading(false);
+      setAnalyticsError(null);
+      return;
+    }
+
+    const signal = analyticsRequests.nextSignal();
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    getContentAnalytics(ws, days as ContentAnalyticsPeriod, signal)
+      .then((result) => {
+        if (!signal.aborted) setAnalytics(result);
+      })
+      .catch((requestError: unknown) => {
+        if (!signal.aborted && !isAbortError(requestError)) {
+          setAnalyticsError('Could not load content insights');
+        }
+      })
+      .finally(() => {
+        if (!signal.aborted) setAnalyticsLoading(false);
+      });
+  }, [analyticsRequests, canViewContentAnalytics, days, ws]);
+
+  useEffect(() => {
+    loadAnalytics();
+    return analyticsRequests.abort;
+  }, [analyticsRequests, loadAnalytics]);
+
   const series = useMemo(() => {
     if (!stats) return [];
     const cutoff = Date.now() - days * 86400000;
@@ -274,6 +318,15 @@ export default function StatsPage() {
           follows; edit analytics from document revisions.
         </p>
       </Loader>
+
+      {canViewContentAnalytics && (
+        <ContentInsights
+          analytics={analytics}
+          loading={analyticsLoading}
+          error={analyticsError}
+          onRetry={loadAnalytics}
+        />
+      )}
     </AppShell>
   );
 }

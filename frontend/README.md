@@ -39,7 +39,11 @@ For the full stack (backend + Mongo + Mailpit) plus demo data, use the
 - **Search** — full-text with faceting + a `⌘K` command palette.
 - **Media** — file manager over pluggable storage volumes (local / S3 / FTP),
   upload, move between volumes, Markdown embeds.
-- **Statistics** — reads, edits over time, contributors, watchers.
+- **Statistics** — reads, edits over time, contributors, and watchers for every
+  member. Owners and Editors also get 7/30/90-day content insights: most-read
+  documents, established pages with no reads, and normalized searches that
+  returned no visible results. Insight requests are cancelled when the range
+  changes and fail independently from the existing statistics dashboard.
 - **Connect** — link a Git source, signed webhooks, publish to Git.
 - **Team** — members & roles, CI/CD tokens. **Account** — profile & settings.
 - Three-theme design system (Light / Grey / Violet).
@@ -47,6 +51,17 @@ For the full stack (backend + Mongo + Mailpit) plus demo data, use the
 ## Stack
 
 Next.js 14 · React 18 · TypeScript (strict) · Tailwind CSS · Jest + RTL.
+
+## Content analytics
+
+The Statistics page calls the protected
+`GET /workspaces/:id/documents/content-analytics?days=7|30|90` endpoint only for
+workspace Owners and Editors. The backend applies the caller's per-resource
+access rules before returning file paths or read totals. Search telemetry is
+privacy-bounded: only zero-result terms are stored, normalized to lowercase
+with collapsed whitespace and limited to 160 characters. Successful searches,
+user ids, IP addresses, user agents, URLs, and result contents are not tracked.
+No third-party analytics service is required.
 
 ## License
 
