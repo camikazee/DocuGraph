@@ -3,7 +3,7 @@ import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type EventDocument = HydratedDocument<Event>;
 
-/** Zdarzenie telemetryczne (na razie: odczyt dokumentu z czasem dwell). */
+/** Odczyt dokumentu z dwell time albo prywatnościowe zdarzenie search_zero. */
 @Schema({ timestamps: true, collection: 'events' })
 export class Event {
   @Prop({
