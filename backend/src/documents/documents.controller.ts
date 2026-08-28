@@ -34,7 +34,9 @@ import { BulkOperationDto } from './dto/bulk-operation.dto';
 import { MoveDocumentDto } from './dto/move-document.dto';
 import { ReadEventDto, WatchDto } from './dto/telemetry.dto';
 import { PublishDto } from './dto/publish.dto';
+import { ContentAnalyticsQueryDto } from './dto/content-analytics.dto';
 import { DocumentsService } from './documents.service';
+import { ContentAnalyticsService } from './content-analytics.service';
 import { AutoPublishService } from './auto-publish.service';
 import { PublishDocumentsService } from './publish-documents.service';
 import { DocumentConsistencyService } from './document-consistency.service';
@@ -54,6 +56,7 @@ export class DocumentsController {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     private readonly access: AccessService,
+    private readonly analytics: ContentAnalyticsService,
   ) {}
 
   /** Aktor akcji: zalogowany user (JWT) albo null dla tokenu CI. */
@@ -781,9 +784,28 @@ ${entries}
     if (!q || typeof q !== 'string') {
       throw new BadRequestException('Query param "q" must be a string');
     }
-    return this.documentsService.search(
+    const results = await this.documentsService.search(
       workspaceId,
       q,
+      await this.checker(workspaceId, req),
+    );
+    if (results.length === 0) {
+      await this.analytics.recordSearchWithoutResults(workspaceId, q);
+    }
+    return results;
+  }
+
+  @Get('content-analytics')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Owner, Role.Editor)
+  async contentAnalytics(
+    @Param('id') workspaceId: string,
+    @Req() req: RequestWithWorkspace,
+    @Query() query: ContentAnalyticsQueryDto,
+  ) {
+    return this.analytics.get(
+      workspaceId,
+      query.days,
       await this.checker(workspaceId, req),
     );
   }

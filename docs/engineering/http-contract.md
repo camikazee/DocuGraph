@@ -28,6 +28,63 @@ Liveness reports the process; readiness verifies data services. Consistency
 diagnostics are authenticated, tenant-scoped, read-only, and never repair data
 implicitly.
 
+## Content analytics
+
+`GET /workspaces/:id/documents/content-analytics?days=30` returns actionable
+content insights for the current workspace. Owner and Editor may read this
+endpoint; Viewer receives `403`. The optional `days` query parameter defaults
+to `30` and accepts exactly `7`, `30`, or `90`; other values receive `400`.
+
+The response has this shape:
+
+```json
+{
+  "periodDays": 30,
+  "reads": 8,
+  "uniqueReaders": 2,
+  "deadPageCount": 1,
+  "zeroResultSearches": 3,
+  "mostRead": [
+    {
+      "filePath": "guides/api.md",
+      "title": "API guide",
+      "reads": 8,
+      "uniqueReaders": 2
+    }
+  ],
+  "deadPages": [
+    {
+      "filePath": "guides/old.md",
+      "title": "Old guide",
+      "lastReadAt": null,
+      "updatedAt": "2026-07-01T12:00:00.000Z",
+      "inactiveDays": 58
+    }
+  ],
+  "searchesWithoutResults": [
+    {
+      "query": "missing api",
+      "count": 3,
+      "lastSearchedAt": "2026-08-28T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+Document rows and read totals include only current documents visible through
+the requesting member's resource-access rules. Deleted documents and data from
+other workspaces are excluded. A dead page is a visible current document that
+is at least seven days old and has zero reads in the selected period. Ranked
+lists contain at most ten rows. Responses expose paths, titles, counts, and ISO
+timestamps, never MongoDB ids or user ids.
+
+`GET /workspaces/:id/documents/search?q=...` retains its existing array
+response. Only a completed search with zero access-filtered results records an
+analytics event. Recorded terms are trimmed, lowercased, have internal
+whitespace collapsed, and are truncated to 160 characters; normalized terms
+shorter than two characters are ignored. Search telemetry contains no user id,
+file path, IP address, user-agent string, raw URL, or result content.
+
 ## Document templates
 
 `GET /workspaces/:id/document-templates` returns stable objects with `id`,
