@@ -10,12 +10,14 @@ Requires Node.js **20.19 or newer**.
 
 ```bash
 npm install
-cp .env.local.example .env.local     # NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
+cp .env.local.example .env.local     # optional native-dev API override
 npm run dev -- -p 3001               # backend uses :3000, so run the front elsewhere
 ```
 
-For the full stack (backend + Mongo + Mailpit) plus demo data, use the
-`docker-compose.yml` and seed in the repository root — see its README.
+Container deployments need no build-time public URL: the browser uses
+same-origin `/api/v1`, and `DOCUGRAPH_API_UPSTREAM` configures the private
+backend URL at runtime. For the auto-seeded demo use `docker-compose.demo.yml`
+in the repository root.
 
 ## Features
 

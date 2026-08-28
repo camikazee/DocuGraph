@@ -8,28 +8,43 @@ graph** with backlinks and **health checks** (broken links, orphans, stale
 pages), a fast reader, a split editor, and pluggable media storage. NestJS 10
 backend + Next.js 14 frontend.
 
-## Quick start (dev)
+## Quick start (self-hosted)
 
-For a native Node.js workflow use Node **20.19+**. Docker users do not need to
-install Node locally. With nvm, `nvm use` reads the included `.nvmrc`.
-
-Bring up the full stack and load a ready-to-explore demo workspace:
+Docker Compose v2 is the only requirement. The installer generates unique
+secrets, validates the configuration, starts the public images, and checks the
+database, API, and frontend:
 
 ```bash
-docker compose up -d --build      # mongo + backend + frontend + mailpit
-cd backend && npm run seed        # fixtures: users, docs, media, members
+git clone https://github.com/camikazee/DocuGraph.git
+cd DocuGraph
+./scripts/install.sh
 ```
 
-Then open:
+Open **http://localhost:3002** and create the first account. Existing `.env`
+configuration and persistent volumes are always preserved. Useful variants:
 
-| Service          | URL                                   |
-| ---------------- | ------------------------------------- |
-| Frontend         | http://localhost:3002                 |
-| API              | http://localhost:3000/api/v1          |
-| API docs (Swagger)| http://localhost:3000/api/docs       |
-| Mailpit (email)  | http://localhost:8025                 |
+```bash
+./scripts/install.sh --build                         # build this checkout
+./scripts/install.sh --url https://docs.example.com # custom public origin
+./scripts/doctor.sh                                 # diagnose an installation
+```
 
-Sign in with any demo account (password **`Demo1234!`**):
+Only the frontend port is public. Browser requests to `/api/v1` are forwarded
+to the separate backend container over the private network; MongoDB is never
+published. The same frontend/backend images therefore work unchanged behind
+any domain or reverse proxy. See [portable container installation](docs/install/containers.md)
+for Portainer, VPS/NAS, Kubernetes, Nomad, upgrades, and rollback.
+
+For native development use Node **20.19+**. With nvm, `nvm use` reads `.nvmrc`.
+
+## Ready-to-explore demo
+
+The isolated demo stack includes Mailpit and automatically creates sample
+documents and these accounts (password **`Demo1234!`**):
+
+```bash
+docker compose -f docker-compose.demo.yml up -d --build
+```
 
 | Email                   | Role   |
 | ----------------------- | ------ |
@@ -37,14 +52,14 @@ Sign in with any demo account (password **`Demo1234!`**):
 | editor@demo.docugraph   | Editor |
 | viewer@demo.docugraph   | Viewer |
 
-### Reset to a clean slate
+### Reset the demo to a clean slate
 
 The seed is **idempotent** — re-run it any time. For a pristine database
 (wipes all data) use:
 
 ```bash
-docker compose down -v && docker compose up -d
-cd backend && npm run seed
+docker compose -f docker-compose.demo.yml down -v
+docker compose -f docker-compose.demo.yml up -d --build
 ```
 
 ## What the fixture sets up
@@ -73,15 +88,16 @@ Monorepo:
 
 - `backend/` — NestJS API (own README, `.env.example`, tests)
 - `frontend/` — Next.js app (own README)
-- `docker-compose.yml` — full demo stack (Mongo + backend + frontend + Mailpit)
+- `docker-compose.yml` — production-safe self-hosted stack
+- `docker-compose.demo.yml` — auto-seeded demo with Mailpit
 
 Contributor architecture and quality contracts live in
 [`docs/engineering`](docs/engineering); start with [`AGENTS.md`](AGENTS.md).
 
 ## Deployment & security
 
-The compose stack is dev/demo only. For production setup (secrets, TLS,
-persistent storage, hardening, connecting a repo, CI gate) see
+For production setup (secrets, TLS, persistent storage, hardening, connecting a
+repo, CI gate) see
 [DEPLOY.md](DEPLOY.md). Security model and reporting: [SECURITY.md](SECURITY.md).
 
 ## Demo & walkthrough

@@ -3,6 +3,20 @@
 This records substantial engineering changes and their verification. It does
 not replace Git history or the product roadmap.
 
+## 2026-08-28 — Portable self-hosting
+
+- Replaced the environment-specific frontend API build argument with a bounded
+  same-origin `/api/v1` gateway and a private runtime backend URL.
+- Made the canonical Compose stack production-safe: unique required secrets,
+  one public frontend port, private backend/MongoDB, health-gated startup, and
+  persistent Mongo/workspace volumes.
+- Added a non-destructive installer and container-based doctor covering
+  configuration, MongoDB, backend readiness, and frontend health.
+- Added public amd64/arm64 image publishing with latest, semantic-version, and
+  immutable SHA tags; both application images are environment-agnostic.
+- Kept the Next.js, NestJS, MongoDB, filesystem Markdown, and two-image
+  architecture unchanged and added no mandatory infrastructure.
+
 ## 2026-08-28 — Actionable content analytics
 
 - Added Owner/Editor-only 7/30/90-day most-read, dead-page, and missed-search

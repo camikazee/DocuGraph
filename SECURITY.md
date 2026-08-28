@@ -18,8 +18,9 @@ see [`backend/SECURITY.md`](./backend/SECURITY.md).
 - Set strong, unique secrets via your environment / secrets manager —
   **never** commit them. At minimum: `JWT_SECRET` and `MEDIA_SECRET`
   (used to encrypt stored volume credentials and Git push remotes).
-  The `docker-compose.yml` secret is a **local-demo placeholder only**.
-- Set `CORS_ORIGINS` to your actual frontend origin (not `*`).
+  `./scripts/install.sh` generates both once and stores them in ignored `.env`.
+- Set `APP_URL` to the exact public origin. The canonical stack mirrors it to
+  backend CORS and keeps the API behind same-origin `/api/v1`.
 - Configure SMTP (`SMTP_*`) for real password-reset email delivery.
 - Consider tighter rate limits on `/auth/*` and protecting `/api/docs`.
 

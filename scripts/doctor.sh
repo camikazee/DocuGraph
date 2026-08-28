@@ -43,10 +43,26 @@ if [[ "$config_only" == true ]]; then
 fi
 
 failed=0
+attempts="${DOCUGRAPH_DOCTOR_ATTEMPTS:-30}"
+delay="${DOCUGRAPH_DOCTOR_DELAY_SECONDS:-2}"
+
+run_with_retry() {
+  local attempt
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    if "$@" >/dev/null 2>&1; then
+      return 0
+    fi
+    if ((attempt < attempts)); then
+      sleep "$delay"
+    fi
+  done
+  return 1
+}
+
 check() {
   local label="$1"
   shift
-  if "$@" >/dev/null 2>&1; then
+  if run_with_retry "$@"; then
     echo "OK  $label"
   else
     echo "FAIL  $label"
@@ -62,7 +78,7 @@ check 'Backend readiness' \
   "fetch('http://localhost:3000/api/v1/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 check 'Frontend' \
   "${compose[@]}" exec -T frontend node -e \
-  "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  "fetch('http://localhost:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 if ((failed)); then
   echo 'Inspect details with: docker compose logs --tail=100' >&2

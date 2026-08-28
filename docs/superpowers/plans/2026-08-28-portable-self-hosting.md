@@ -39,7 +39,7 @@
 - Produces: `proxyApiRequest(request: Request, path: string[]): Promise<Response>` and same-origin browser base `/api/v1`.
 - Guarantees: method, query, request body, authorization, content type, status, response body, and safe end-to-end headers survive the proxy; hop-by-hop headers and browser cookies do not cross the boundary.
 
-- [ ] **Step 1: Write failing proxy tests**
+- [x] **Step 1: Write failing proxy tests**
 
 Create `frontend/lib/api-proxy.test.ts` with cases for JSON POST, multipart bytes, query strings, binary responses, backend errors, HEAD requests, and invalid upstream configuration. The first test must assert the exact runtime URL and header boundary:
 
@@ -85,13 +85,13 @@ describe('runtime API proxy', () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `cd frontend && npm test -- --runInBand lib/api-proxy.test.ts`
 
 Expected: FAIL because `frontend/lib/api-proxy.ts` does not exist.
 
-- [ ] **Step 3: Implement the bounded runtime proxy**
+- [x] **Step 3: Implement the bounded runtime proxy**
 
 Create `frontend/lib/api-proxy.ts` with a fixed environment-owned upstream and explicit request header allowlist:
 
@@ -161,7 +161,7 @@ export async function proxyApiRequest(
 }
 ```
 
-- [ ] **Step 4: Expose every supported HTTP method through one route handler**
+- [x] **Step 4: Expose every supported HTTP method through one route handler**
 
 Create `frontend/app/api/v1/[...path]/route.ts`:
 
@@ -184,7 +184,7 @@ export const HEAD = handle;
 export const OPTIONS = handle;
 ```
 
-- [ ] **Step 5: Make the browser default same-origin and remove the build-time Docker argument**
+- [x] **Step 5: Make the browser default same-origin and remove the build-time Docker argument**
 
 Change `frontend/lib/api.ts` to:
 
@@ -196,13 +196,13 @@ Keep `NEXT_PUBLIC_API_URL` as an optional native-development escape hatch, but r
 
 Extend `frontend/lib/api.test.ts` to assert `fetch` receives `/api/v1/test` when no public override is compiled. Update `frontend/SECURITY.md` to state that the proxy forwards only Bearer auth and bounded headers, does not forward browser cookies, and accepts no user-controlled upstream.
 
-- [ ] **Step 6: Run frontend verification**
+- [x] **Step 6: Run frontend verification**
 
 Run: `cd frontend && npm run lint && npm run typecheck && npm test -- --runInBand && npm run build`
 
 Expected: PASS; the build route list includes `/api/v1/[...path]`.
 
-- [ ] **Step 7: Commit the runtime boundary**
+- [x] **Step 7: Commit the runtime boundary**
 
 ```bash
 git add frontend/app/api frontend/lib/api-proxy.ts frontend/lib/api-proxy.test.ts frontend/lib/api.ts frontend/lib/api.test.ts frontend/Dockerfile frontend/SECURITY.md
@@ -227,7 +227,7 @@ git commit -m "feat(install): configure API upstream at runtime"
 - Produces: one public frontend endpoint; internal `frontend -> backend -> mongo` networking; persistent `mongo-data` and `workspace-data` volumes.
 - Defaults: `DOCUGRAPH_PORT=3002`, `APP_URL=http://localhost:3002`, `DOCUGRAPH_REGISTRY=ghcr.io/camikazee`, `DOCUGRAPH_TAG=latest`.
 
-- [ ] **Step 1: Write a Compose contract test**
+- [x] **Step 1: Write a Compose contract test**
 
 Create `scripts/compose-contract.test.sh`. It must copy `.env.example` to a temporary env file, inject deterministic test secrets, render every Compose file with `docker compose config`, and assert:
 
@@ -250,13 +250,13 @@ grep -q 'DOCUGRAPH_API_UPSTREAM: http://backend:3000/api/v1' <<<"$rendered"
 ! grep -q 'published: "27017"' <<<"$rendered"
 ```
 
-- [ ] **Step 2: Run the contract and verify it fails**
+- [x] **Step 2: Run the contract and verify it fails**
 
 Run: `bash scripts/compose-contract.test.sh`
 
 Expected: FAIL because `.env.example` and the one-origin Compose contract do not exist.
 
-- [ ] **Step 3: Add the root environment template**
+- [x] **Step 3: Add the root environment template**
 
 Create `.env.example` with empty secrets and usable non-secret defaults:
 
@@ -289,7 +289,7 @@ AUTH_THROTTLE_LIMIT=10
 
 Ensure root `.env` is ignored while `.env.example` remains tracked.
 
-- [ ] **Step 4: Make the root stack secure and source-buildable**
+- [x] **Step 4: Make the root stack secure and source-buildable**
 
 Update `docker-compose.yml` so backend and frontend declare both a public image and their existing `build` blocks. Require secrets with Compose interpolation:
 
@@ -321,13 +321,13 @@ frontend:
 
 Remove inline development secrets, the backend host port, and default Mailpit from the canonical production-safe stack. Preserve named volumes and health-gated startup. Add a frontend healthcheck using Node `fetch('http://localhost:3000')`.
 
-- [ ] **Step 5: Align prebuilt, Portainer, and demo variants**
+- [x] **Step 5: Align prebuilt, Portainer, and demo variants**
 
 For `docker-compose.prod.yml`, use the same image defaults, one frontend port, runtime upstream, and no frontend build argument. For Portainer keep source builds but replace `NEXT_PUBLIC_API_URL` with runtime `DOCUGRAPH_API_UPSTREAM`. Keep demo ports and Mailpit, but make its frontend call the internal runtime upstream instead of baking a host URL.
 
 Update `.env.portainer.example` so the only required public URL is `APP_URL`; remove `NEXT_PUBLIC_API_URL`, explain the single-origin `/api/v1` gateway, and retain optional OAuth callback examples under the same origin.
 
-- [ ] **Step 6: Verify all Compose variants**
+- [x] **Step 6: Verify all Compose variants**
 
 Run: `bash scripts/compose-contract.test.sh`
 
@@ -337,7 +337,7 @@ Run: `docker compose --env-file .env.example -f docker-compose.demo.yml config -
 
 Expected: PASS without publishing MongoDB.
 
-- [ ] **Step 7: Commit the deployment contract**
+- [x] **Step 7: Commit the deployment contract**
 
 ```bash
 git add .env.example .gitignore docker-compose.yml docker-compose.prod.yml docker-compose.portainer.yml docker-compose.demo.yml .env.portainer.example scripts/compose-contract.test.sh
@@ -360,7 +360,7 @@ git commit -m "feat(install): add portable one-origin stack"
 - `./scripts/doctor.sh [--config-only]` exits non-zero with actionable messages when Docker, Compose configuration, containers, or internal health checks fail.
 - `DOCUGRAPH_ROOT` is a test-only repository-root override; production behavior resolves the script parent directory.
 
-- [ ] **Step 1: Write installer failure and idempotency tests**
+- [x] **Step 1: Write installer failure and idempotency tests**
 
 Create `scripts/install.test.sh` with a temporary project copy and a fake `docker` executable. Cover all of these assertions:
 
@@ -381,13 +381,13 @@ cmp "$fixture/.env" "$fixture/original.env"
 # An invalid URL and missing Docker both fail with a readable message.
 ```
 
-- [ ] **Step 2: Run the installer test and verify it fails**
+- [x] **Step 2: Run the installer test and verify it fails**
 
 Run: `bash scripts/install.test.sh`
 
 Expected: FAIL because `scripts/install.sh` does not exist.
 
-- [ ] **Step 3: Implement the non-destructive installer**
+- [x] **Step 3: Implement the non-destructive installer**
 
 The installer must use `set -euo pipefail`, parse only the documented flags, validate `APP_URL` as an exact `http://` or `https://` origin (no path, query, fragment, whitespace, `&`, or `|`), require `docker compose version`, and generate secrets with `/dev/urandom`, `od`, and `tr`. It must never source `.env` as shell code. Generate `.env` by transforming only exact keys from `.env.example`:
 
@@ -412,7 +412,7 @@ docker compose --env-file "$root/.env" -f "$root/docker-compose.yml" config --qu
 
 Without `--no-start`, run `docker compose up -d` for published images or `docker compose up -d --build` when `--build` is supplied, then call `scripts/doctor.sh`. Print the frontend URL and backup reminder on success.
 
-- [ ] **Step 4: Write and run failing doctor tests**
+- [x] **Step 4: Write and run failing doctor tests**
 
 Create `scripts/doctor.test.sh` with a fake Docker executable that records arguments and returns controlled exit codes. Assert `--config-only` calls `docker compose ... config --quiet`, a stopped service produces non-zero status, and healthy frontend/backend probes produce:
 
@@ -427,7 +427,7 @@ Run: `bash scripts/doctor.test.sh`
 
 Expected: FAIL because `scripts/doctor.sh` does not exist.
 
-- [ ] **Step 5: Implement diagnostics without host curl dependencies**
+- [x] **Step 5: Implement diagnostics without host curl dependencies**
 
 Use Docker-contained probes so the host needs only Docker Compose:
 
@@ -441,7 +441,7 @@ docker compose --env-file "$root/.env" -f "$root/docker-compose.yml" exec -T fro
 
 Check MongoDB via `docker compose exec -T mongo mongosh --quiet --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 1)'`. Emit one `OK` or `FAIL` line per boundary and return non-zero if any required check fails.
 
-- [ ] **Step 6: Gate installation contracts in CI**
+- [x] **Step 6: Gate installation contracts in CI**
 
 Add a root-level CI step after checkout:
 
@@ -457,7 +457,7 @@ Run: `bash scripts/install.test.sh && bash scripts/doctor.test.sh && bash script
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit installer and diagnostics**
+- [x] **Step 7: Commit installer and diagnostics**
 
 ```bash
 git add scripts/install.sh scripts/install.test.sh scripts/doctor.sh scripts/doctor.test.sh .github/workflows/ci.yml
@@ -478,7 +478,7 @@ git commit -m "feat(install): add safe setup and diagnostics"
 - Tags: `latest` from `main`, branch name for manual/main builds, semantic versions from `v*` tags, and immutable `sha-<commit>`.
 - Requires only the standard GitHub `GITHUB_TOKEN` with `packages: write`; no project secret is added.
 
-- [ ] **Step 1: Add a static workflow contract test**
+- [x] **Step 1: Add a static workflow contract test**
 
 Extend `scripts/validate-project-docs.test.sh` to assert:
 
@@ -492,13 +492,13 @@ grep -q 'DOCUGRAPH_API_UPSTREAM' "$root/docker-compose.prod.yml"
 ! grep -q 'NEXT_PUBLIC_API_URL' "$root/Jenkinsfile"
 ```
 
-- [ ] **Step 2: Run the validator and verify it fails**
+- [x] **Step 2: Run the validator and verify it fails**
 
 Run: `bash scripts/validate-project-docs.test.sh`
 
 Expected: FAIL because the image publishing workflow does not exist and Jenkins still builds a per-environment frontend.
 
-- [ ] **Step 3: Publish backend and frontend with Buildx**
+- [x] **Step 3: Publish backend and frontend with Buildx**
 
 Create `.github/workflows/images.yml` triggered on `main`, `v*` tags, and `workflow_dispatch`. Set:
 
@@ -524,11 +524,11 @@ tags: |
   type=sha
 ```
 
-- [ ] **Step 4: Remove per-environment frontend builds from Jenkins**
+- [x] **Step 4: Remove per-environment frontend builds from Jenkins**
 
 Delete the `NEXT_PUBLIC_API_URL` parameter and build argument. Build the frontend with `--target prod ./frontend`, because its backend upstream is now runtime configuration. Update Jenkins comments and success output to describe environment-agnostic images.
 
-- [ ] **Step 5: Validate workflow and image references**
+- [x] **Step 5: Validate workflow and image references**
 
 Run:
 
@@ -541,7 +541,7 @@ MEDIA_SECRET=fedcba9876543210fedcba9876543210 \
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit image portability**
+- [x] **Step 6: Commit image portability**
 
 ```bash
 git add .github/workflows/images.yml Jenkinsfile docker-compose.prod.yml scripts/validate-project-docs.test.sh
@@ -569,7 +569,7 @@ git commit -m "ci(images): publish portable multi-arch releases"
 - Produces three documented paths: quickest prebuilt install, source build, and orchestrator deployment.
 - Defines one runtime contract shared by Docker Compose, Portainer, Kubernetes, Nomad, and managed container platforms: frontend public URL, `DOCUGRAPH_API_UPSTREAM`, backend secrets/config, Mongo URI, and two persistent mounts.
 
-- [ ] **Step 1: Replace the root quick start with safe one-command installation**
+- [x] **Step 1: Replace the root quick start with safe one-command installation**
 
 Document these exact paths in `Readme.md`:
 
@@ -593,7 +593,7 @@ Custom public address without editing YAML:
 
 State that `.env` is created once with mode `0600`, existing configuration and volumes are preserved, only the frontend port is public, and `./scripts/doctor.sh` diagnoses the installation. Keep the separate demo command and demo credentials clearly labeled as non-production.
 
-- [ ] **Step 2: Document platform-neutral container deployment**
+- [x] **Step 2: Document platform-neutral container deployment**
 
 Create `docs/install/containers.md` with:
 
@@ -608,11 +608,11 @@ Create `docs/install/containers.md` with:
 - amd64/arm64 image names and immutable version pinning;
 - upgrades, rollbacks, backups, and the rule that `MEDIA_SECRET` must remain stable.
 
-- [ ] **Step 3: Remove stale two-domain and build-time instructions**
+- [x] **Step 3: Remove stale two-domain and build-time instructions**
 
 Update `DEPLOY.md`, frontend docs, `.env.local.example`, demo docs, and `CONTRIBUTING.md`. Same-origin is the default. Keep `NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1` only as an optional native frontend-development override; never require it in a container build.
 
-- [ ] **Step 4: Record the shipped capability**
+- [x] **Step 4: Record the shipped capability**
 
 Add to `ROADMAP.md` under Platform:
 
@@ -625,7 +625,7 @@ Add to `ROADMAP.md` under Platform:
 
 Remove the provider-specific interpretation of “Optional live/preview”; retain a hosted showcase only as an optional community-operated instance, not a product installation requirement. Record the runtime API gateway, installer behavior, multi-architecture images, and unchanged architecture in `docs/engineering/change-log.md` and `docs/engineering/architecture.md`.
 
-- [ ] **Step 5: Run all local quality gates**
+- [x] **Step 5: Run all local quality gates**
 
 Run:
 
@@ -653,7 +653,7 @@ Run the source-built acceptance stack with generated temporary configuration:
 
 Expected: MongoDB, backend readiness, frontend, and same-origin `http://localhost:3002/api/v1/health` all report healthy. Do not remove volumes during acceptance.
 
-- [ ] **Step 6: Commit documentation and acceptance**
+- [x] **Step 6: Commit documentation and acceptance**
 
 ```bash
 git add Readme.md DEPLOY.md CONTRIBUTING.md frontend/README.md frontend/CONTRIBUTING.md frontend/.env.local.example docs/demo/README.md docs/install/containers.md docs/engineering/architecture.md docs/engineering/change-log.md ROADMAP.md

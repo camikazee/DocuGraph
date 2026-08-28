@@ -4,12 +4,13 @@
 
 ```bash
 npm install
-cp .env.local.example .env.local     # NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
+cp .env.local.example .env.local     # optional native-dev API override
 npm run dev -- -p 3001
 ```
 
 A running backend is required (see the backend repository, or the demo stack's
-`docker-compose.yml`).
+`docker-compose.demo.yml`). Container images use the runtime-only
+`DOCUGRAPH_API_UPSTREAM`; do not add environment-specific build arguments.
 
 ## Before a pull request
 

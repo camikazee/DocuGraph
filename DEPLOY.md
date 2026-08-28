@@ -1,7 +1,9 @@
 # Deploying DocuGraph
 
-The `docker-compose.yml` in this repo is a **dev/demo** stack (inline secrets,
-no TLS). For a real deployment, follow the steps below.
+The canonical `docker-compose.yml` is production-safe by default: it generates
+no demo users, publishes only the frontend, keeps the API and MongoDB private,
+and requires real secrets. Start with `./scripts/install.sh`; use
+`docker-compose.demo.yml` only for the explicitly seeded demo.
 
 ## 1. Secrets & environment
 
@@ -20,13 +22,14 @@ Backend (`backend/.env.example` lists everything). Minimum for production:
 | `MONGO_URI` | your MongoDB (auth + TLS recommended) |
 | `JWT_SECRET` | long, random, unique |
 | `MEDIA_SECRET` | **separate** key encrypting volume creds + Git push remotes |
-| `CORS_ORIGINS` | exact frontend origin(s), **not** `*` |
 | `APP_URL` | public frontend URL (used in reset emails) |
 | `SMTP_HOST/PORT/USER/PASS/FROM` | real SMTP for password-reset email |
 | `SWAGGER_ENABLED` | leave unset/`false` to disable `/api/docs` in prod |
 | `THROTTLE_*`, `BCRYPT_ROUNDS` | tune rate limiting / hashing cost |
 
-Frontend build arg `NEXT_PUBLIC_API_URL` must point at the **public** API URL.
+The frontend reads `DOCUGRAPH_API_UPSTREAM` at runtime. The browser always uses
+same-origin `APP_URL/api/v1`, so public URL changes do not rebuild either image.
+For a standard stack the upstream is `http://backend:3000/api/v1`.
 
 ### Secrets as files (no plaintext `.env` in production)
 
@@ -66,7 +69,7 @@ remotes unreadable.
 ## 2. Hardening checklist
 
 - [ ] `NODE_ENV=production`, real `JWT_SECRET` + `MEDIA_SECRET` (not the compose defaults).
-- [ ] `CORS_ORIGINS` set to your domain(s).
+- [ ] `APP_URL` set to the exact public origin; the stack mirrors it to CORS.
 - [ ] `/api/docs` (Swagger) disabled — it is off in prod unless `SWAGGER_ENABLED=true`.
 - [ ] TLS terminated at a reverse proxy (below); never expose Mongo to the internet.
 - [ ] Persistent volumes for Mongo data and the workspace `.md` files.
@@ -75,20 +78,18 @@ remotes unreadable.
 
 ## 3. Reverse proxy + HTTPS
 
-Terminate TLS in front of the frontend and API. Example with Caddy
-(automatic HTTPS):
+Terminate TLS in front of the frontend. The frontend forwards `/api/v1` to the
+private backend, so the API needs no public domain or host port. Example with
+Caddy (automatic HTTPS):
 
 ```caddyfile
 docs.example.com {            # frontend
     reverse_proxy frontend:3000
 }
-api.example.com {             # backend API
-    reverse_proxy backend:3000
-}
 ```
 
-Set `NEXT_PUBLIC_API_URL=https://api.example.com/api/v1`,
-`CORS_ORIGINS=https://docs.example.com`, `APP_URL=https://docs.example.com`.
+Set `APP_URL=https://docs.example.com`. Keep
+`DOCUGRAPH_API_UPSTREAM=http://backend:3000/api/v1` on the frontend service.
 
 ## 4. Persistent storage
 
@@ -203,17 +204,16 @@ frontend — using `docker-compose.portainer.yml`.
      stages).
 2. **Environment variables** — add the ones from `.env.portainer.example`
    (Portainer's "Advanced mode" lets you paste the whole file). Required:
-   `JWT_SECRET`, `MEDIA_SECRET`, `NEXT_PUBLIC_API_URL`, `APP_URL`,
-   `CORS_ORIGINS`. `NEXT_PUBLIC_API_URL` is **baked at build time**, so if you
-   change it you must **re-pull & rebuild** the stack, not just restart.
+   `JWT_SECRET`, `MEDIA_SECRET`, and `APP_URL`. The private API address is
+   runtime configuration, so moving the stack to another domain never requires
+   a frontend rebuild.
 3. **Deploy.** Mongo comes up first (healthcheck-gated), then backend, then
    frontend. Data persists in the `mongo-data` and `workspace-data` volumes.
 
 Notes:
-- Front the two published ports with the reverse proxy from §3 (TLS). If the
-  proxy is on the same host/network you can drop the `ports:` mappings and route
-  to the services by name (`backend:3000`, `frontend:3000`) — they already
-  `expose` 3000.
+- Front the single published frontend port with the reverse proxy from §3
+  (TLS). If the proxy shares the stack network, drop the `ports:` mapping and
+  route directly to `frontend:3000`.
 - **Secrets:** for stronger hygiene than stack env vars, use Portainer
   **Secrets** (or Swarm secrets) and point `*_FILE` variables at the mount, e.g.
   `JWT_SECRET_FILE=/run/secrets/jwt_secret` — see §1.
@@ -245,7 +245,6 @@ Job parameters (or set as global env with the same names):
 | --- | --- |
 | `REGISTRY` | registry + namespace, e.g. `ghcr.io/acme` or `registry.example.com/docugraph` |
 | `REGISTRY_CREDENTIALS_ID` | Jenkins credentials (user/token) for the registry |
-| `NEXT_PUBLIC_API_URL` | public API URL **baked into the frontend image** (per environment) |
 | `RUN_E2E` | run backend e2e (in-memory Mongo) before building — default true |
 | `PUSH_LATEST` | also push `:latest` + the branch tag alongside the commit SHA |
 | `DEPLOY_WEBHOOK` | optional Portainer stack webhook to POST after a successful push |
@@ -256,18 +255,18 @@ Job parameters (or set as global env with the same names):
 Images pushed: `${REGISTRY}/docugraph-backend:<sha>` and
 `…/docugraph-frontend:<sha>` (plus `:latest` and the branch tag when enabled).
 
-> **Frontend is per-environment.** `NEXT_PUBLIC_API_URL` is compiled in at build
-> time, so build a frontend image per target URL (e.g. a staging build and a
-> prod build). The backend image is environment-agnostic (configured at runtime).
+> **Both images are environment-agnostic.** Configure the frontend's private
+> `DOCUGRAPH_API_UPSTREAM` and the backend environment at runtime. The same
+> immutable images can be promoted from development to staging and production.
 
 ### Deploy the built images
 
 On the server (or in Portainer with `docker-compose.prod.yml`):
 
 ```bash
-export REGISTRY=ghcr.io/acme TAG=<git-sha>     # the tag CI pushed
-# plus the runtime env from .env.portainer.example (JWT_SECRET, MEDIA_SECRET,
-# APP_URL, CORS_ORIGINS, …) — via env, an --env-file, or *_FILE secrets (§1)
+export DOCUGRAPH_REGISTRY=ghcr.io/acme DOCUGRAPH_TAG=<git-sha>
+# plus the runtime env from .env.example (JWT_SECRET, MEDIA_SECRET, APP_URL, …)
+# via env, an --env-file, or *_FILE secrets (§1)
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
@@ -278,8 +277,8 @@ pipeline's `DEPLOY_WEBHOOK` so a green build auto-redeploys.
 
 **Rollback:** set `TAG` to a previous SHA and `pull && up -d` again.
 
-**Promotion:** reuse the exact backend image across dev → staging → prod (only
-the runtime env differs); build a matching frontend image per environment URL.
+**Promotion:** reuse the exact backend and frontend images across dev → staging
+→ prod; only runtime environment and secrets differ.
 
 ### Read-only post-deploy smoke
 
@@ -290,7 +289,7 @@ health for that token's workspace. Run it manually with:
 
 ```bash
 FRONTEND_URL=https://docs.example.com \
-API_URL=https://api.docs.example.com/api/v1 \
+API_URL=https://docs.example.com/api/v1 \
 DG_TOKEN=dg_live_optional ./scripts/smoke-production-readonly.sh
 ```
 

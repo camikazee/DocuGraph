@@ -18,6 +18,13 @@ Frontend and backend are separate production images. MongoDB is included in
 easy-install Compose but may be external in production. Redis, a queue broker,
 object storage, and a Git provider remain optional.
 
+The default public boundary is one frontend origin. Browser requests use
+same-origin `/api/v1`; a bounded Next.js route handler forwards them to the
+runtime-only `DOCUGRAPH_API_UPSTREAM`. This is a deployment adapter, not a new
+service or application layer: NestJS remains the sole API owner, and frontend
+and backend remain separately deployable. MongoDB and the backend are private
+in the default Compose topology.
+
 ## Persistence ownership
 
 Markdown on disk is the recoverable content source. MongoDB is its queryable

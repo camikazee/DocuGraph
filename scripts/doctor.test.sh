@@ -24,6 +24,8 @@ esac
 SH
 chmod +x "$fake_bin/docker"
 export FAKE_DOCKER_LOG="$tmp/docker.log"
+export DOCUGRAPH_DOCTOR_ATTEMPTS=1
+export DOCUGRAPH_DOCTOR_DELAY_SECONDS=0
 
 PATH="$fake_bin:$PATH" DOCUGRAPH_ROOT="$fixture" \
   "$root/scripts/doctor.sh" --config-only > "$tmp/config.out"

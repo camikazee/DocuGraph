@@ -1,17 +1,16 @@
 # Contributing to DocuGraph
 
 Thanks for your interest! This is a monorepo: the NestJS API lives in
-`backend/` and the Next.js app in `frontend/`, with the demo stack
-(`docker-compose.yml`) at the root.
+`backend/` and the Next.js app in `frontend/`, with self-hosted and demo Compose
+stacks at the root.
 
 ## Development setup
 
 ```bash
-docker compose up -d --build      # mongo + backend + frontend + mailpit
-cd backend && npm run seed        # demo data (users, docs, media)
+docker compose -f docker-compose.demo.yml up -d --build
 ```
 
-- Frontend: http://localhost:3002 · API: http://localhost:3000/api/v1
+- Frontend: http://localhost:3002 · same-origin API: http://localhost:3002/api/v1
 - Demo login: `owner@demo.docugraph` / `Demo1234!` (see the root README)
 
 Working on a single package instead? Each has its own README and `.env.example`.
