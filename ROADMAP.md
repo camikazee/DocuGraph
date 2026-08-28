@@ -130,6 +130,9 @@ as they ship. Legend: `[x]` done · `[~]` in progress · `[ ]` planned.
 - [ ] AI assist: summarize, suggest links, detect duplicate/contradictory docs
 - [ ] Slack/Teams app: post on publish, search docs from chat
 - [ ] Import from existing docs (Notion / Confluence / GitBook)
-- [ ] Reusable snippets
+- [x] **Reusable snippets** — the editor inserts three zero-setup built-ins or
+  tenant-scoped workspace Markdown fragments at the caret/current selection;
+  Owner/Editor manage custom snippets, while persistence still uses the normal
+  document save pipeline.
 - [ ] Custom frontmatter schemas
 - [ ] Analytics: most-read, dead pages, search-with-no-results

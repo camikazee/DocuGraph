@@ -10,6 +10,8 @@ Backend dla **DocuGraph** — platformy SaaS do dokumentacji deweloperskiej (Mar
   parser front matter/HTML/linków, rewizje i historia, komentarze, przenoszenie.
 - **Szablony dokumentów** — trzy gotowe wzorce oraz własne szablony izolowane
   per workspace, bez dodatkowego silnika szablonów.
+- **Fragmenty Markdown** — trzy gotowe snippety oraz biblioteka własnych,
+  wielokrotnego użytku fragmentów izolowanych per workspace.
 - **Graf i jakość** — graf linków, raport zepsutych linków + autofix, sieroty.
 - **Wyszukiwanie** — pełnotekstowe (MongoDB `$text`).
 - **Media** — pluggable wolumeny (Local / S3 / FTP/SFTP), upload, przenoszenie
@@ -73,6 +75,7 @@ src/
 ├── api-keys/    # tokeny CI/CD + endpointy /ci
 ├── documents/   # pipeline .md, graf, broken-links, search, webhooki, publish
 ├── document-templates/ # wbudowane + własne szablony workspace
+├── document-snippets/  # wbudowane + własne fragmenty Markdown workspace
 └── media/       # wolumeny (local/s3/ftp), assety, serwowanie publiczne
 ```
 
@@ -159,6 +162,19 @@ Id zaczynające się od `builtin:` oznaczają niezmienne szablony dostarczane z
 aplikacją. Własne szablony trafiają do MongoDB, ale użycie szablonu jedynie
 wypełnia formularz — dokument nadal zapisuje standardowy filesystem-first
 pipeline.
+
+### Fragmenty dokumentów (JWT)
+
+| Metoda | Ścieżka | Rola |
+|---|---|---|
+| GET | `/workspaces/:id/document-snippets` | każdy członek workspace |
+| POST | `/workspaces/:id/document-snippets` | Owner/Editor |
+| PATCH | `/workspaces/:id/document-snippets/:snippetId` | Owner/Editor; tylko własne fragmenty |
+| DELETE | `/workspaces/:id/document-snippets/:snippetId` | Owner/Editor; tylko własne fragmenty |
+
+Wbudowane fragmenty z identyfikatorami `builtin:` są niezmienne i dostępne bez
+konfiguracji. Wstawienie fragmentu zmienia wyłącznie treść w przeglądarce;
+dokument trafia na dysk i do indeksu dopiero przez zwykły zapis dokumentu.
 
 ### Bramka jakości w CI
 

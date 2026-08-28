@@ -26,7 +26,9 @@ For the full stack (backend + Mongo + Mailpit) plus demo data, use the
   related docs / backlinks) and a split-pane **Editor** (Markdown ↔ preview,
   metadata, history). New documents can start from built-in or reusable
   workspace templates; Owner/Editor can manage custom templates in the same
-  form, and all generated Markdown remains editable before saving.
+  form. The editor also inserts built-in or workspace Markdown snippets at the
+  current selection and lets Owner/Editor manage the reusable library. Template
+  and snippet output remains editable and uses the normal save action.
 - **Structure builder** — drag-and-drop folder / sidebar organization.
 - **Graph** — interactive link graph with broken-link detection.
 - **Search** — full-text with faceting + a `⌘K` command palette.

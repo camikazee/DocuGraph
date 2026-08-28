@@ -3,6 +3,17 @@
 This records substantial engineering changes and their verification. It does
 not replace Git history or the product roadmap.
 
+## 2026-08-28 — Reusable document snippets
+
+- Added three immutable, zero-setup Markdown snippets and tenant-scoped custom
+  snippet libraries with Owner/Editor management.
+- Added selection-safe editor insertion with normalized blank lines, restored
+  focus and caret position, plus searchable built-in/workspace sections.
+- Kept insertion browser-only until the user invokes the normal document save,
+  preserving the existing filesystem-first persistence path.
+- Covered tenant isolation, authorization, stable DTOs, CRUD failures, API
+  adapters, accessible selection, and editor draft preservation.
+
 ## 2026-08-28 — Document templates
 
 - Added three immutable built-in Markdown templates available immediately after

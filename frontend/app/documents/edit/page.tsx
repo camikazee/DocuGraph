@@ -2,6 +2,7 @@
 
 import {
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -13,10 +14,17 @@ import MarkdownIt from 'markdown-it';
 import { LogoMark } from '@/components/ui/Logo';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { Button } from '@/components/ui/Button';
+import { DocumentSnippetManager } from '@/components/DocumentSnippetManager';
+import { DocumentSnippetPicker } from '@/components/DocumentSnippetPicker';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/cn';
 import { prose } from '@/lib/prose';
 import { apiFetch, ApiError } from '@/lib/api';
+import {
+  listDocumentSnippets,
+  type DocumentSnippet,
+} from '@/lib/api/document-snippets';
+import { insertMarkdownSnippet } from '@/lib/insertMarkdownSnippet';
 import { useProfile } from '@/lib/useProfile';
 
 interface FullDoc {
@@ -54,6 +62,8 @@ function EditorContent() {
   const { toast } = useToast();
   const { profile, error } = useProfile();
   const ws = profile?.workspaces[0]?.id;
+  const role = profile?.workspaces[0]?.role;
+  const canEdit = role === 'owner' || role === 'editor';
 
   const initialPath = params.get('path') ?? '';
   const isNew = !initialPath;
@@ -66,6 +76,10 @@ function EditorContent() {
   const [saving, setSaving] = useState(false);
   const [revisions, setRevisions] = useState<Revision[]>([]);
   const [commitMsg, setCommitMsg] = useState('');
+  const [snippets, setSnippets] = useState<DocumentSnippet[]>([]);
+  const [snippetPickerOpen, setSnippetPickerOpen] = useState(false);
+  const [snippetManagerOpen, setSnippetManagerOpen] = useState(false);
+  const snippetSelectionRef = useRef({ start: 0, end: 0 });
 
   // --- Link autocomplete (typing `](` suggests existing document paths) ---
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -152,6 +166,34 @@ function EditorContent() {
     setSeg('split');
   }
 
+  const loadSnippets = useCallback(async () => {
+    if (!ws) return;
+    try {
+      setSnippets(await listDocumentSnippets(ws));
+    } catch {
+      setSnippets([]);
+    }
+  }, [ws]);
+
+  function openSnippetPicker() {
+    const editor = taRef.current;
+    snippetSelectionRef.current = {
+      start: editor?.selectionStart ?? content.length,
+      end: editor?.selectionEnd ?? content.length,
+    };
+    setSnippetPickerOpen(true);
+  }
+
+  function insertSnippet(snippet: DocumentSnippet) {
+    const { start, end } = snippetSelectionRef.current;
+    const next = insertMarkdownSnippet(content, snippet.contentRaw, start, end);
+    caretRef.current = next.caret;
+    setContent(next.value);
+    setSnippetPickerOpen(false);
+    setAc(null);
+    if (seg === 'preview') setSeg('split');
+  }
+
   async function loadRevisions() {
     if (!ws || !initialPath) return;
     try {
@@ -194,6 +236,10 @@ function EditorContent() {
       .then(setDocs)
       .catch(() => setDocs([]));
   }, [ws]);
+
+  useEffect(() => {
+    void loadSnippets();
+  }, [loadSnippets]);
 
   // synchronizuj ścieżkę zapisu przy nawigacji między plikami
   useEffect(() => setFilePath(initialPath), [initialPath]);
@@ -328,6 +374,18 @@ function EditorContent() {
           </span>
 
           <div className="ml-auto flex items-center gap-2.5">
+            {canEdit && (
+              <button
+                type="button"
+                onClick={openSnippetPicker}
+                className="hidden items-center gap-1.5 rounded-[9px] border border-capbd bg-capbg px-2.5 py-1.5 text-[12px] font-semibold text-fg2 transition hover:border-acc sm:flex"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 2.5h8v11H4zM6.5 5.5h3M6.5 8h3M6.5 10.5H8" stroke="var(--accfg)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Snippets
+              </button>
+            )}
             <button
               onClick={insertFrontmatter}
               title="Insert a front matter block (title, tags, status)"
@@ -381,6 +439,7 @@ function EditorContent() {
               <div className="relative min-h-0 flex-1">
                 <textarea
                   ref={taRef}
+                  aria-label="Markdown editor"
                   value={content}
                   onChange={onEditorChange}
                   onKeyDown={onEditorKeyDown}
@@ -548,6 +607,27 @@ function EditorContent() {
           </div>
         )}
       </aside>
+
+      <DocumentSnippetPicker
+        snippets={snippets}
+        open={snippetPickerOpen}
+        onClose={() => setSnippetPickerOpen(false)}
+        onInsert={insertSnippet}
+        onManage={() => {
+          setSnippetPickerOpen(false);
+          setSnippetManagerOpen(true);
+        }}
+        canManage={canEdit}
+      />
+      {ws && canEdit && (
+        <DocumentSnippetManager
+          workspaceId={ws}
+          snippets={snippets}
+          open={snippetManagerOpen}
+          onClose={() => setSnippetManagerOpen(false)}
+          onChanged={loadSnippets}
+        />
+      )}
     </div>
   );
 }
